@@ -1,0 +1,14 @@
+REACT is used in this project.
+It basically is a JavaScript library that I will use to control what the users see and use on the website.
+Great for apps that don't need refreshing to see changes.
+Great for using reusing components throughout the project.
+npm install react - to install react.
+the part where you define the component is where you use typescript i.e. const component () => {
+    typescript here
+}
+in the return () statement you put html syntax code inside.
+this project uses tailwindcss to style the website so all CSS is inline instead using a new file.
+
+Node.js stores the data in the backend i.e. sending messages and storing them in database.
+Used for BackEnd
+used in terminal when doing npm *
