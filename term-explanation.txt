@@ -9,6 +9,8 @@ the part where you define the component is where you use typescript i.e. const c
 in the return () statement you put html syntax code inside.
 this project uses tailwindcss to style the website so all CSS is inline instead using a new file.
 
+Vite is also used in the project. It is a frontend build tool and development server which builds the web app.
+
 Node.js stores the data in the backend i.e. sending messages and storing them in database.
 Used for BackEnd
 used in terminal when doing npm *
