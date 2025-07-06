@@ -9,7 +9,7 @@ namespace ClassConnectBackend.Models {
 
         public string Year { get; set; } = "";   // e.g. "Freshman", "Senior", etc.
         public string Major { get; set; } = "";  // e.g. "Computer Science"
-
+        public string ProfilePictureUrl { get; set; } = ""; // URL to profile picture
         public List<Course> EnrolledCourses { get; set; } = new();
     }
 }
