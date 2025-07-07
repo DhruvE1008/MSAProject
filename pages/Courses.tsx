@@ -11,14 +11,16 @@ import {
 const userId = 3 // 🔐 Replace this with actual logged-in user ID
 
 interface Course {
-  id: number
-  code: string
-  name: string
-  department: string
-  professor: string
-  students: number
-  description: string
+  id: number;
+  code: string;
+  name: string;
+  department: string;
+  professor: string;
+  description: string;
+  studentCount: number; // note camelCase and use this instead of 'students'
 }
+
+const departments = ['All', 'Computer Science', 'Mathematics', 'Physics', 'Chemistry', 'Biology']
 
 const Courses = () => {
   const [courses, setCourses] = useState<Course[]>([])
@@ -26,7 +28,10 @@ const Courses = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('All')
   const [showCreateForm, setShowCreateForm] = useState(false)
 
-  const departments = ['All', 'Computer Science', 'Mathematics', 'Physics', 'Chemistry', 'Biology']
+  // New state: track which course is currently being edited
+  const [editingCourseId, setEditingCourseId] = useState<number | null>(null)
+  // Store edit form data
+  const [editCourseData, setEditCourseData] = useState<Partial<Course>>({})
 
   const [newCourse, setNewCourse] = useState({
     code: '',
@@ -38,8 +43,8 @@ const Courses = () => {
 
   useEffect(() => {
     axios.get<Course[]>('http://localhost:5082/api/courses')
-      .then(res => setCourses(res.data))
-      .catch(err => console.error("Failed to fetch courses", err))
+    .then(res => setCourses(res.data))
+    .catch(err => console.error("Failed to fetch courses", err))
   }, [])
 
   const handleRemoveCourse = (courseId: number) => {
@@ -55,10 +60,7 @@ const Courses = () => {
   }
 
   const handleCreateCourse = () => {
-    axios.post('http://localhost:5082/api/courses', {
-      ...newCourse,
-      students: 0,
-    })
+    axios.post('http://localhost:5082/api/courses', newCourse)
       .then(res => {
         alert('Course created successfully!')
         setCourses(prev => [...prev, res.data])
@@ -72,6 +74,48 @@ const Courses = () => {
         })
       })
       .catch(() => alert('Failed to create course'))
+  }
+
+  // New: handle edit button click - open edit form and load data
+  const handleEditClick = (course: Course) => {
+    setEditingCourseId(course.id)
+    setEditCourseData(course)
+  }
+
+  // New: handle cancel edit
+  const handleCancelEdit = () => {
+    setEditingCourseId(null)
+    setEditCourseData({})
+  }
+
+  // New: handle changes in edit form inputs
+  const handleEditChange = (field: keyof Course, value: string) => {
+    setEditCourseData(prev => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  // New: send PUT request to update the course
+  const handleSaveEdit = async () => {
+    if (!editingCourseId) return
+
+    try {
+      const updatedCourse = {
+        ...editCourseData,
+        id: editingCourseId,
+      }
+      await axios.put(`http://localhost:5082/api/courses/${editingCourseId}`, updatedCourse)
+      alert('Course updated successfully!')
+      setCourses(prev =>
+        prev.map(c => (c.id === editingCourseId ? (updatedCourse as Course) : c))
+      )
+      setEditingCourseId(null)
+      setEditCourseData({})
+    } catch (error) {
+      alert('Failed to update course')
+      console.error(error)
+    }
   }
 
   const filteredCourses = courses.filter((course) => {
@@ -120,15 +164,17 @@ const Courses = () => {
       </div>
 
       {/* Create Course UI */}
-      <div>
+       <div>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
           className="px-4 py-2 mb-4 bg-green-600 text-white rounded-md"
         >
+          {/* if the form is shown, show "Cancel", otherwise show "Add New Course" */}
           {showCreateForm ? 'Cancel' : 'Add New Course'}
         </button>
 
         {showCreateForm && (
+          // the form to create a new course
           <div className="space-y-4 mb-6 bg-gray-100 dark:bg-gray-800 p-4 rounded-md">
             <input
               type="text"
@@ -185,34 +231,98 @@ const Courses = () => {
               className="bg-white dark:bg-gray-800 rounded-xl shadow hover:shadow-md transition-shadow"
             >
               <div className="p-6">
-                <h2 className="text-lg font-semibold">{course.name}</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {course.code} • {course.department}
-                </p>
-                <p className="text-sm mt-2">{course.description}</p>
-                <p className="text-sm font-medium mt-2">Instructor: {course.professor}</p>
+                {/* If this course is being edited, show edit form */}
+                {editingCourseId === course.id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={editCourseData.code || ''}
+                      onChange={e => handleEditChange('code', e.target.value)}
+                      className="w-full mb-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-black dark:text-white"
+                      placeholder="Course Code"
+                    />
+                    <input
+                      type="text"
+                      value={editCourseData.name || ''}
+                      onChange={e => handleEditChange('name', e.target.value)}
+                      className="w-full mb-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-black dark:text-white"
+                      placeholder="Course Name"
+                    />
+                    <select
+                      value={editCourseData.department || departments[1]}
+                      onChange={e => handleEditChange('department', e.target.value)}
+                      className="w-full mb-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-black dark:text-white"
+                    >
+                      {departments.slice(1).map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={editCourseData.professor || ''}
+                      onChange={e => handleEditChange('professor', e.target.value)}
+                      className="w-full mb-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-black dark:text-white"
+                      placeholder="Professor"
+                    />
+                    <textarea
+                      value={editCourseData.description || ''}
+                      onChange={e => handleEditChange('description', e.target.value)}
+                      className="w-full mb-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-black dark:text-white"
+                      placeholder="Description"
+                    />
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handleSaveEdit}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="px-4 py-2 bg-gray-500 text-white rounded-md"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-semibold pb-1 ">{course.name}</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 pb-2">
+                      {course.code} • {course.department}
+                    </p>
+                    <p className="text-sm mt-2">{course.description}</p>
+                    <p className="text-sm font-medium mt-2">Instructor: {course.professor}</p>
 
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-                    <UsersIcon size={16} className="mr-1" />
-                    {course.students} students enrolled
-                  </div>
-                  <div className="flex space-x-2">
-                    <Link
-                      to={`/chat/${course.id}`}
-                      className="px-3 py-1 text-sm rounded-md bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-800 dark:text-blue-200"
-                    >
-                      <MessageCircleIcon size={16} className="mr-1 inline" />
-                      Chat
-                    </Link>
-                    <button
-                      onClick={() => handleRemoveCourse(course.id)}
-                      className="px-3 py-1 text-sm border border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-md"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                        <UsersIcon size={16} className="mr-1" />
+                        {course.studentCount} students enrolled
+                      </div>
+                      <div className="flex space-x-2">
+                        <Link
+                          to={`/chat/${course.id}`}
+                          className="px-3 py-1 text-sm rounded-md bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-800 dark:text-blue-200"
+                        >
+                          <MessageCircleIcon size={16} className="mr-1 inline" />
+                          Chat
+                        </Link>
+                        <button
+                          onClick={() => handleEditClick(course)} // Edit button added
+                          className="px-3 py-1 text-sm border border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded-md"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleRemoveCourse(course.id)}
+                          className="px-3 py-1 text-sm border border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-md"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ))
