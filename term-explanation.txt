@@ -18,16 +18,14 @@ used in terminal when doing npm *
 I used postgreSQL for the database where I store all my relations and my backend communicates with.
 
 Work to Do:
-add dummy users in the courses.
-let courses show the number of students enrolled.
-Make the backend work with the messaging part of the app.
-show the ones you are enrolled in and show others
-only allow users who are enrolled in that class to chat or view chat messages.
+make the user's message on the right instead on the left
 Make the Landing page, sign up page and connections page.
 Make sign in authorization
+make it so that when you refresh the page you stay signed in.
 Advanced feature
 add connection features: get private chats with others
 add other users profile that you can access through connections tab.
 add better profile pictures maybe animated through photoshop.
 make it so that when you update things in the page, it notifies the user with a better notification.
+implement notifications feature for the bell things
 README file and video.

@@ -9,7 +9,7 @@ namespace ClassConnectBackend.Controllers
     // APIController attribute indicates that this controller responds to web API requests
     [ApiController]
     // Route attribute defines the base URL for this controller
-    // e.g. http://localhost:5000/api/users
+    // e.g. http://localhost:5082/api/users
     // This means all actions in this controller will be prefixed with "api/users"
     [Route("api/users")]
     // UserController is a instance of ControllerBase
@@ -119,6 +119,20 @@ namespace ClassConnectBackend.Controllers
             }
 
             return Ok(user);
+        }
+
+        // Get all courses a user is enrolled in
+        [HttpGet("{id}/courses")]
+        public async Task<ActionResult<IEnumerable<Course>>> GetUserCourses(int id)
+        {
+            var user = await _db.Users
+                .Include(u => u.EnrolledCourses)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (user == null)
+                return NotFound();
+
+            return Ok(user.EnrolledCourses);
         }
     }
 }

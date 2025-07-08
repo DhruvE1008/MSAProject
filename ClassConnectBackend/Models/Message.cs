@@ -6,6 +6,7 @@ namespace ClassConnectBackend.Models {
         public int CourseId { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public string Content { get; set; } = "";
+        public string FormattedTimestamp => Timestamp.ToLocalTime().ToString("MMM dd, yyyy - hh:mm tt");
     }
 }
 

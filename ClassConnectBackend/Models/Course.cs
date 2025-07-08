@@ -8,6 +8,7 @@ namespace ClassConnectBackend.Models{
         public string Professor { get; set; } = ""; // e.g. "Dr. Smith"
         public string Description { get; set; } = "";
         public List<User> Members { get; set; } = new();
+        public List<Message> Messages { get; set; } = new();
     }
 }
 

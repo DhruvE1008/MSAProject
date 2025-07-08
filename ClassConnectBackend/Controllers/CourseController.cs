@@ -115,5 +115,28 @@ namespace ClassConnectBackend.Controllers
             return Ok("User unenrolled successfully");
         }
 
+        // basically gets all the courses that a user is enrolled in
+        // GET: api/courses/user/{userId}
+        [HttpGet("user/{userId}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetCoursesForUser(int userId)
+        {
+            var courses = await _db.Courses
+                .Where(c => c.Members.Any(m => m.Id == userId))
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Code,
+                    c.Name,
+                    c.Department,
+                    c.Professor,
+                    c.Description,
+                    StudentCount = c.Members.Count()
+                })
+                .ToListAsync();
+
+            return Ok(courses);
+        }
+
+
     }
 }
