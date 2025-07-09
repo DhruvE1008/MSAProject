@@ -4,16 +4,14 @@
 // link is used when linking internal paths in the application.
 import { Link } from 'react-router-dom'
 // lucide-react is a library of icons and we will use it for the header icons.
-import { SunIcon, MoonIcon, BellIcon } from 'lucide-react'
-import { useTheme } from '../ThemeContext'
+import { BellIcon } from 'lucide-react'
+import SwitchingThemes from './SwitchingThemes'
 
 // const = component declaration
 // components are reusable pieces of code that can be used in different parts of the application.
 // the header is a component because it will be used in every page of the application.
 const Header = () => {
-  // useTheme is a custom hook that provides the current appearance theme (e.g. Light and Dark mode) and a function to toggle it.
-  // a custom hook is a user-defined function that allows us to reuse code across different components.
-  const { theme, toggleTheme } = useTheme()
+
   return (
     // tailwindcss stuff is basically where the CSS is written inline in HTML like syntax.
     <header className="bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex items-center justify-between">
@@ -27,15 +25,7 @@ const Header = () => {
       <div className="flex items-center space-x-4">
         {/* the button below toggles the theme between light and dark mode.
           Since I am in a type script element (div) the */} 
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          aria-label={
-            theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-          }
-        >
-          {theme === 'dark' ? <SunIcon size={20} /> : <MoonIcon size={20} />}
-        </button>
+        <SwitchingThemes />
         {/* Notif button; allows users to get notifications regarding their activities.*/}
         <button
           className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors relative"

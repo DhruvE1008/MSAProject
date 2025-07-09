@@ -1,5 +1,5 @@
 // app is used to manage user authentication and routing
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   BrowserRouter as Router,
   Routes,
@@ -13,13 +13,15 @@ import Profile from './pages/Profile'
 import Courses from './pages/Courses'
 import Chat from './pages/Chat'
 import Login from './pages/Login'
+import LandingPage from './pages/LandingPage'
+import SignUp from './pages/SignUp'
+import Connections from './pages/Connections'
 export function App() {
-    // checks whether the user is authenticated
-  // if the user is authenticated, they can access the main app
-  // if not, they are redirected to the login page
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  // function to handle user login
   const handleLogin = () => {
+    setIsAuthenticated(true)
+  }
+  const handleSignUp = () => {
     setIsAuthenticated(true)
   }
   return (
@@ -34,13 +36,24 @@ export function App() {
               <Route path="/courses" element={<Courses />} />
               <Route path="/chat/:courseId" element={<Chat />} />
               <Route path="/chat" element={<Chat />} />
+              <Route path="/connections" element={<Connections />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>
         ) : (
-            // if not authenticated, it shows the login page
+          // if not authenticated, it shows the login page
           <Routes>
-            <Route path="*" element={<Login onLogin={handleLogin} />} />
+            {/* The landing page is the first page that the user sees when they visit the site. */}
+            <Route path="/" element={<LandingPage />} />
+            {/* The login page is where the user can log in to their account. */}
+            <Route path="/login" element={<Login onLogin={handleLogin} />} />
+            {/* The sign up page is where the user can create a new account. */}
+            <Route
+              path="/signup"
+              element={<SignUp onSignUp={handleSignUp} />}
+            />
+            {/* The home page is where the user can see the courses and other information. */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
       </Router>
