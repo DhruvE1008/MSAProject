@@ -19,11 +19,13 @@ interface ProfileData {
 // components are reusable pieces of code that can be used in different parts of the application.
 // the header is a component because it will be used in every page of the application.
 const Header = () => {
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const userId = currentUser.id;
   const [profile, setProfile] = useState<ProfileData | null>(null)
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const profileRes = await axios.get(`http://localhost:5082/api/users/${3}`)
+        const profileRes = await axios.get(`http://localhost:5082/api/users/${userId}`)
         setProfile(profileRes.data)
       } catch (e) {
         console.error("Failed to load profile data", e)

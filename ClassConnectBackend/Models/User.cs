@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace ClassConnectBackend.Models {
     public class User
     {
@@ -11,5 +13,8 @@ namespace ClassConnectBackend.Models {
         public string Major { get; set; } = "";  // e.g. "Computer Science"
         public string ProfilePictureUrl { get; set; } = ""; // URL to profile picture
         public List<Course> EnrolledCourses { get; set; } = new();
+
+        [NotMapped]
+        public string? Password { get; set; } // Not mapped to the database, used for user input only
     }
 }

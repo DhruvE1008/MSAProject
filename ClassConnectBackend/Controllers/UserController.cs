@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using ClassConnectBackend.Models;
 using ClassConnectBackend.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+
 
 namespace ClassConnectBackend.Controllers
 {
@@ -17,10 +19,15 @@ namespace ClassConnectBackend.Controllers
     {
         // private because we don't want to expose the database context outside this controller
         private readonly AppDbContext _db;
+        private readonly IPasswordHasher<User> _passwordHasher; // Add this line
 
         // Constructor injection to get the database context
         // This allows us to use the database context in our actions
-        public UsersController(AppDbContext db) => _db = db;
+        public UsersController(AppDbContext db, IPasswordHasher<User> passwordHasher)
+        {
+            _db = db;
+            _passwordHasher = passwordHasher;
+        }
 
         // post is to create a new user
         [HttpPost]
@@ -36,6 +43,13 @@ namespace ClassConnectBackend.Controllers
                 return Conflict(new { message = "Email is already registered." });
             }
 
+            // Generate a random DiceBear avatar
+            var randomSeed = Guid.NewGuid().ToString(); // random string
+            var avatarUrl = $"https://api.dicebear.com/8.x/bottts/png?seed={randomSeed}";
+
+            user.ProfilePictureUrl = avatarUrl;
+
+            user.PasswordHash = _passwordHasher.HashPassword(user, user.Password); // Hash the password before saving
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
             return CreatedAtAction(nameof(Get), new { id = user.Id }, user);
@@ -141,6 +155,30 @@ namespace ClassConnectBackend.Controllers
                 return NotFound();
 
             return Ok(user.EnrolledCourses);
+        }
+
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
+        {
+            // Find user by email (case-insensitive)
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == loginRequest.Email.ToLower());
+
+            if (user == null)
+            {
+                return Unauthorized(new { message = "Invalid email or password." });
+            }
+
+            var passwordVerificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, loginRequest.Password);
+
+            if (passwordVerificationResult == PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new { message = "Invalid email or password." });
+            }
+
+            // Optionally generate JWT token here for auth, or just return user data
+            return Ok(user);
         }
     }
 }

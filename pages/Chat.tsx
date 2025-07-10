@@ -34,13 +34,14 @@ const Chat = () => {
   // This is used to automatically scroll to the latest message when a new message is sent or received
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const USER_ID = 3 // hardcoded user id
+const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+const userId = currentUser.id;
 
   // useEffect to fetch courses based on user ID
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const res = await fetch(`http://localhost:5082/api/courses/user/${USER_ID}`)
+        const res = await fetch(`http://localhost:5082/api/courses/user/${userId}`)
         const data = await res.json()
         setCourses(data)
 
@@ -79,7 +80,7 @@ const Chat = () => {
           hour12: true,
         }).replace(',', ' -'),
         sender: msg.sender.username, // Optionally replace with real name
-        isCurrentUser: msg.senderId === 3, // Replace 3 with current user ID
+        isCurrentUser: msg.senderId === userId, 
         avatar: msg.sender.profilePictureUrl
       }));
 
@@ -104,7 +105,7 @@ const handleSendMessage = async (e: React.FormEvent) => {
   if (!message.trim() || !selectedCourse) return;
 
   const newMsg = {
-    senderId: 3, // Replace with actual logged-in user ID
+    senderId: userId, // Replace with actual logged-in user ID
     content: message
   };
 

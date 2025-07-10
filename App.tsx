@@ -1,5 +1,5 @@
 // app is used to manage user authentication and routing
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   BrowserRouter as Router,
   Routes,
@@ -16,20 +16,48 @@ import Login from './pages/Login'
 import LandingPage from './pages/LandingPage'
 import SignUp from './pages/SignUp'
 import Connections from './pages/Connections'
+// Define the User type according to your application's needs
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  // add other fields as needed
+};
+
 export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // allows the web app to remember the user after they log in or sign up
   const handleLogin = () => {
-    setIsAuthenticated(true)
-  }
+    setIsAuthenticated(true);
+    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+  };
+
   const handleSignUp = () => {
-    setIsAuthenticated(true)
-  }
+    setIsAuthenticated(true);
+    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+  };
+  
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    sessionStorage.removeItem('currentUser');
+  };
+
+  useEffect(() => {
+    const savedUser = sessionStorage.getItem('currentUser');
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
+      setIsAuthenticated(true);
+    }
+  }, []);
+
   return (
     <ThemeProvider>
       <Router>
         {/* If authenticated then it shows the page with the potential routes to other pages. */}
         {isAuthenticated ? (
-          <Layout>
+          <Layout onLogout={handleLogout}>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/profile" element={<Profile />} />

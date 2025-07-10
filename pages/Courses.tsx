@@ -8,8 +8,6 @@ import {
   MessageCircleIcon,
 } from 'lucide-react'
 
-const userId = 3 // 🔐 Replace this with actual logged-in user ID
-
 interface Course {
   id: number;
   code: string;
@@ -20,6 +18,9 @@ interface Course {
   studentCount: number;
   studentIds?: number[]; // ✅ Optional field to simulate enrollment
 }
+
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const userId = currentUser.id;
 
 const departments = ['All', 'Computer Science', 'Mathematics', 'Physics', 'Chemistry', 'Biology']
 
@@ -49,7 +50,7 @@ useEffect(() => {
     .catch(err => console.error("Failed to fetch courses", err))
 
   // Fetch enrolled courses for the user
-  axios.get<Course[]>(`http://localhost:5082/api/users/${userId}/courses`)
+  axios.get<Course[]>(`http://localhost:5082/api/courses/user/${userId}`)
     .then(res => setEnrolledCourses(res.data))
     .catch(err => console.error("Failed to fetch user's enrolled courses", err))
 }, [])

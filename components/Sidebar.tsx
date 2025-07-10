@@ -13,7 +13,12 @@ import {
   MenuIcon,
   XIcon,
 } from 'lucide-react'
-const Sidebar = () => {
+
+interface SidebarProps {
+  onLogout: () => void;
+}
+
+const Sidebar = ({ onLogout }: SidebarProps) => {
     // the sidebar can be open and closed so we need to manage its state.
     // isOpen is a boolean that determines whether the sidebar is open or closed.
     // setIsOpen is a function that allows us to update the state of isOpen.
@@ -86,6 +91,15 @@ const Sidebar = () => {
               </NavLink>
             ))}
           </nav>
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              onLogout();
+            }}
+            className="w-full flex items-center justify-center mt-8 px-4 py-3 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors"
+          >
+            Log Out
+          </button>
         </div>
       </aside>
     </>

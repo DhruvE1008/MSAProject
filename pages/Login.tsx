@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { ArrowLeftIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import SwitchingThemes from '../components/SwitchingThemes'
+import axios from 'axios'
 
 interface LoginProps {
   onLogin: () => void
@@ -11,9 +12,25 @@ const Login = ({ onLogin }: LoginProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onLogin()
+    try {
+      const response = await axios.post('http://localhost:5082/api/users/login', { email, password })
+
+      if (response.status === 200) {
+        const user = response.data
+        // Save user info locally, e.g. in localStorage or context
+        localStorage.setItem('currentUser', JSON.stringify(user))
+        onLogin() // notify parent component about login success
+      }
+    } catch (err: any) {
+      // Show error message to user
+      if (err.response?.status === 401) {
+        alert('Invalid email or password.')
+      } else {
+        alert('Invalid password')
+      }
+    }
   }
 
   return (

@@ -18,11 +18,10 @@ used in terminal when doing npm *
 I used postgreSQL for the database where I store all my relations and my backend communicates with.
 
 Work to Do:
-Make sign in authorization
-make it so that when you refresh the page you stay signed in.
-Advanced feature
 add connection features: get private chats with others
+Advanced feature
 make it so that when you update things in the page, it notifies the user with a better notification.
 implement notifications feature for the bell things
 deploy.
+maybe have an admin mode so people cant delete courses.
 README file and video.

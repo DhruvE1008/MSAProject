@@ -3,6 +3,8 @@
 // It also runs EF Core migrations on startup
 using Microsoft.EntityFrameworkCore;
 using ClassConnectBackend.Data;
+using Microsoft.AspNetCore.Identity; // Make sure this is at the top
+using ClassConnectBackend.Models;    // Make sure this is at the top
 
 // web application builder that sets up the application
 var builder = WebApplication.CreateBuilder(args);
@@ -43,6 +45,8 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>(); // <-- Add this line
 
 var app = builder.Build();
 

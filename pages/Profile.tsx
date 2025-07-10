@@ -20,7 +20,8 @@ interface ProfileData {
 }
 
 const Profile = () => {
-  const userId = 3
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const userId = currentUser.id;
   const [isEditing, setIsEditing] = useState(false)
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -206,7 +207,7 @@ const Profile = () => {
             <>
               <h1 className="text-2xl font-bold">{profile.name}</h1>
               <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Year: {profile.year} | Major: {profile.major}
+                {profile.year} | Major: {profile.major}
               </p>
               <p className="mt-4 text-gray-700 dark:text-gray-300">{profile.bio}</p>
             </>

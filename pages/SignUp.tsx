@@ -87,7 +87,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     name: `${formData.firstName} ${formData.lastName}`, // Combine first + last name
     email: formData.email,
     bio: formData.bio,
-    passwordHash: formData.password, // Backend should hash this
+    password: formData.password, // Backend should hash this
     username: username,
     year: formData.year,
     major: formData.major,
@@ -104,7 +104,9 @@ const handleSubmit = async (e: React.FormEvent) => {
       }
     })
 
-    console.log('Response:', response) // Debug log
+    const user = response.data
+    // Save user info locally, e.g. in localStorage or context
+    localStorage.setItem('currentUser', JSON.stringify(user))
     
     // Success - call parent callback
     onSignUp()
