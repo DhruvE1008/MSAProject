@@ -8,6 +8,7 @@ interface Course {
   name: string
 }
 
+// JSON API converts PascalCase to camelCase, so we use camelCase here
 interface ProfileData {
   id: number
   name: string
@@ -15,6 +16,7 @@ interface ProfileData {
   enrolledCourses: Course[]
   year: string
   major: string
+  profilePictureUrl: string
 }
 
 const Profile = () => {
@@ -122,7 +124,7 @@ const Profile = () => {
         <div className="relative h-48 bg-gradient-to-r from-blue-400 to-blue-600">
           <div className="absolute -bottom-12 left-6">
             <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e"
+              src={profile.profilePictureUrl}
               alt="Profile"
               className="h-24 w-24 rounded-full border-4 border-white dark:border-gray-800"
             />

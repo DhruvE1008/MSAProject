@@ -23,9 +23,26 @@ namespace ClassConnectBackend.Controllers
         public async Task<ActionResult<IEnumerable<Message>>> GetMessages(int courseId)
         {
             var messages = await _db.Messages
-                .Where(m => m.CourseId == courseId)
-                .OrderBy(m => m.Timestamp)
-                .ToListAsync();
+                    .Where(m => m.CourseId == courseId)
+                    .Include(m => m.Sender) // <-- This is the key line
+                    .OrderBy(m => m.Timestamp)
+                    .ToListAsync();
+
+                // You can project to an anonymous object or a DTO if needed
+                var result = messages.Select(m => new
+                {
+                    m.Id,
+                    m.Content,
+                    m.Timestamp,
+                    m.SenderId,
+                    m.FormattedTimestamp,
+                    Sender = m.Sender == null ? null : new
+                    {
+                        m.Sender.Id,
+                        m.Sender.Username, // Make sure this property exists in your User model
+                        m.Sender.ProfilePictureUrl // Optional
+                    }
+                });
 
             // Return the list directly; FormattedTimestamp will be serialized along with the others
             return Ok(messages);

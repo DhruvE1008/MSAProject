@@ -78,10 +78,9 @@ const Chat = () => {
           minute: '2-digit',
           hour12: true,
         }).replace(',', ' -'),
-        sender: `User ${msg.senderId}`, // Optionally replace with real name
+        sender: msg.sender.username, // Optionally replace with real name
         isCurrentUser: msg.senderId === 3, // Replace 3 with current user ID
-        // AI generated avatar URL using DiceBear API
-        avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=' + msg.senderId
+        avatar: msg.sender.profilePictureUrl
       }));
 
       setMessages(formatted);
@@ -197,7 +196,10 @@ const handleSendMessage = async (e: React.FormEvent) => {
                 {/* If the message is from the user then it goes on the right of the chat and otherwise its on the left with the name shown of the user. */}
                 <div className={`max-w-[70%] ${msg.isCurrentUser ? 'order-1' : 'order-2'}`}>
                   {!msg.isCurrentUser && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{msg.sender}</p>
+                    <p className="text-s mb-1">{msg.sender}</p>
+                  )}
+                  {msg.isCurrentUser && (
+                    <p className="text-s mb-1 text-right">{msg.sender}</p>
                   )}
                   <div
                     className={`p-3 rounded-lg ${
@@ -208,16 +210,23 @@ const handleSendMessage = async (e: React.FormEvent) => {
                   >
                     <p>{msg.text}</p>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
-                    {msg.timestamp}
-                  </p>
+                  {!msg.isCurrentUser && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
+                      {msg.timestamp}
+                    </p>
+                  )}
+                  {msg.isCurrentUser && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">
+                      {msg.timestamp}
+                    </p>
+                  )}
                 </div>
 
                 {msg.isCurrentUser && (
                   <img
                     src={msg.avatar}
                     alt={msg.sender}
-                    className="h-8 w-8 rounded-full ml-2 mt-0" // Added mt-1 for slight offset
+                    className="h-8 w-8 rounded-full mr-2 mt-9" // Added mt-1 for slight offset
                   />
                 )}
               </div>

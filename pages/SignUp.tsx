@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeftIcon, EyeOffIcon, EyeIcon } from 'lucide-react'
 import SwitchingThemes from '../components/SwitchingThemes'
+import axios from 'axios'
 
 interface SignUpProps {
   onSignUp: () => void
@@ -44,15 +45,91 @@ const SignUp = ({ onSignUp }: SignUpProps) => {
     return newErrors
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newErrors = validate()
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      return
-    }
-    onSignUp()
+  const adjectives = [
+  'Hidden',
+  'Anonymous',
+  'Silent',
+  'Mysterious',
+  'Ghostly',
+  'Wandering',
+]
+
+const nouns = [
+  'Falcon',
+  'Panda',
+  'Cactus',
+  'Knight',
+  'Shadow',
+  'Otter',
+]
+
+function generateAnonymousName() {
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)]
+  const noun = nouns[Math.floor(Math.random() * nouns.length)]
+  const number = Math.floor(Math.random() * 1000) // Optional uniqueness
+  return `${adj} ${noun}${number}`
+}
+
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  const newErrors = validate()
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors)
+    return
   }
+
+  // Generate random username
+  const username = generateAnonymousName()
+
+  // Prepare user data to match your backend User model
+  const newUser = {
+    name: `${formData.firstName} ${formData.lastName}`, // Combine first + last name
+    email: formData.email,
+    bio: formData.bio,
+    passwordHash: formData.password, // Backend should hash this
+    username: username,
+    year: formData.year,
+    major: formData.major,
+    profilePictureUrl: "" // Empty for now
+  }
+
+  console.log('Sending user data:', newUser) // Debug log
+
+  try {
+    // Send the user data in the request body
+    const response = await axios.post('http://localhost:5082/api/users', newUser, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('Response:', response) // Debug log
+    
+    // Success - call parent callback
+    onSignUp()
+    
+  } catch (error: any) {
+    console.error('Full error:', error) // Debug log
+    
+    if (error.response) {
+      // Server responded with error status
+      const status = error.response.status
+      const message = error.response.data?.message || error.response.data || 'Unknown error'
+      
+      if (status === 409) {
+        setErrors({ email: 'Email is already registered' })
+      } else if (status === 415) {
+        alert('Server error: Content type not supported. Check backend configuration.')
+      } else {
+        alert(`Error creating account (${status}): ${message}`)
+      }
+    } else {
+      // Network error
+      alert('Network error: Unable to connect to server. Make sure your backend is running.')
+    }
+  }
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12 transition-colors duration-200">

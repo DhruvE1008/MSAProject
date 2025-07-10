@@ -6,12 +6,31 @@ import { Link } from 'react-router-dom'
 // lucide-react is a library of icons and we will use it for the header icons.
 import { BellIcon } from 'lucide-react'
 import SwitchingThemes from './SwitchingThemes'
+import axios from 'axios'
+import { useEffect, useState } from 'react'
+
+// JSON API converts PascalCase to camelCase, so we use camelCase here
+interface ProfileData {
+  id: number
+  profilePictureUrl: string
+}
 
 // const = component declaration
 // components are reusable pieces of code that can be used in different parts of the application.
 // the header is a component because it will be used in every page of the application.
 const Header = () => {
-
+  const [profile, setProfile] = useState<ProfileData | null>(null)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const profileRes = await axios.get(`http://localhost:5082/api/users/${3}`)
+        setProfile(profileRes.data)
+      } catch (e) {
+        console.error("Failed to load profile data", e)
+      }
+    }
+    fetchData()
+  },  []) // a dependency array is used to run the effect only once when the component mounts.
   return (
     // tailwindcss stuff is basically where the CSS is written inline in HTML like syntax.
     <header className="bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex items-center justify-between">
@@ -40,7 +59,7 @@ const Header = () => {
         <Link to="/profile" className="flex items-center">
           {/* Profile image with a border */}
           <img
-            src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+            src={profile?.profilePictureUrl}
             alt="Profile"
             className="h-8 w-8 rounded-full border-2 border-blue-500"
           />

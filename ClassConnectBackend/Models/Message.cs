@@ -7,6 +7,8 @@ namespace ClassConnectBackend.Models {
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public string Content { get; set; } = "";
         public string FormattedTimestamp => Timestamp.ToLocalTime().ToString("MMM dd, yyyy - hh:mm tt");
+        // the ? after User indicates that this property can be null
+        public User Sender { get; set; }
     }
 }
 

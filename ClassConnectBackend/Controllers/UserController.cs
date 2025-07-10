@@ -25,10 +25,18 @@ namespace ClassConnectBackend.Controllers
         // post is to create a new user
         [HttpPost]
         public async Task<IActionResult> Create(User user)
-        {   
+        {
+            // Check if email already exists (case-insensitive)
+            var existingUser = await _db.Users
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == user.Email.ToLower());
+
+            if (existingUser != null)
+            {
+                // Email already in use
+                return Conflict(new { message = "Email is already registered." });
+            }
+
             _db.Users.Add(user);
-            // await is used to asynchronously save changes to the database
-            // so that the database operation does not block the thread
             await _db.SaveChangesAsync();
             return CreatedAtAction(nameof(Get), new { id = user.Id }, user);
         }
