@@ -1,3 +1,4 @@
+// this file is the controller for managing the connections in the web site.
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ClassConnectBackend.Models;
@@ -16,6 +17,7 @@ namespace ClassConnectBackend.Controllers
             _db = db;
         }
 
+        // Gets all accepted connections for a user
         [HttpGet("accepted/{userId}")]
         public async Task<IActionResult> GetAcceptedConnections(int userId)
         {
@@ -36,11 +38,12 @@ namespace ClassConnectBackend.Controllers
                     return new
                     {
                         Id = c.Id,
-                        Name = other.Name,
-                        Major = other.Major,
-                        Year = other.Year,
+                        UserId = other.Id, // The actual user ID for chat creation
+                        Name = other.Name ?? "",
+                        Major = other.Major ?? "",
+                        Year = other.Year ?? "",
                         Avatar = other.ProfilePictureUrl ?? "",
-                        Courses = other.EnrolledCourses.Select(course => course.Name).ToList()
+                        Courses = other.EnrolledCourses?.Select(course => course.Name).ToList() ?? new List<string>()
                     };
                 });
 
@@ -48,10 +51,12 @@ namespace ClassConnectBackend.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error in GetAcceptedConnections: {ex.Message}");
                 return StatusCode(500, $"Error fetching connections: {ex.Message}");
             }
         }
 
+        // Gets all pending connection requests for a user
         [HttpGet("pending/{userId}")]
         public async Task<IActionResult> GetPendingRequests(int userId)
         {
@@ -81,6 +86,7 @@ namespace ClassConnectBackend.Controllers
             }
         }
 
+        // Gets connection suggestions for a user this will be all the users who are in same courses.
         [HttpGet("suggestions/{userId}")]
         public async Task<IActionResult> GetSuggestions(int userId)
         {
@@ -115,6 +121,7 @@ namespace ClassConnectBackend.Controllers
             }
         }
 
+        // sends a connection request to another user.
         [HttpPost("request")]
         public async Task<IActionResult> SendConnectionRequest([FromBody] ConnectionRequestDto request)
         {
@@ -154,6 +161,7 @@ namespace ClassConnectBackend.Controllers
             }
         }
 
+        // accepts a connection request.
         [HttpPost("requests/{id}/accept")]
         public async Task<IActionResult> AcceptConnectionRequest(int id)
         {
@@ -174,6 +182,7 @@ namespace ClassConnectBackend.Controllers
             }
         }
 
+        // rejects a connection request.
         [HttpPost("requests/{id}/reject")]
         public async Task<IActionResult> RejectConnectionRequest(int id)
         {
@@ -196,22 +205,47 @@ namespace ClassConnectBackend.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> RemoveConnection(int id)
+        // deletes an existing connection.
+        [HttpDelete("{connectionId}")]
+        public async Task<IActionResult> RemoveConnection(int connectionId, [FromQuery] int userId)
         {
             try
             {
-                var connection = await _db.Connections.FindAsync(id);
-                if (connection == null)
-                    return NotFound("Connection not found");
+                var connection = await _db.Connections
+                    .FirstOrDefaultAsync(c => c.Id == connectionId && 
+                                             (c.RequesterId == userId || c.ReceiverId == userId));
 
+                if (connection == null)
+                {
+                    return NotFound("Connection not found");
+                }
+
+                // Get the other user's ID
+                var otherUserId = connection.RequesterId == userId ? connection.ReceiverId : connection.RequesterId;
+                
+                // Find and delete associated chats
+                var chatsToDelete = await _db.Chats
+                    .Where(c => (c.User1Id == userId && c.User2Id == otherUserId) ||
+                               (c.User1Id == otherUserId && c.User2Id == userId))
+                    .Include(c => c.Messages) // Include messages for cascade delete
+                    .ToListAsync();
+
+                Console.WriteLine($"Found {chatsToDelete.Count} chats to delete between users {userId} and {otherUserId}");
+
+                // Remove the chats (this will also remove messages due to cascade delete)
+                _db.Chats.RemoveRange(chatsToDelete);
+                
+                // Remove the connection
                 _db.Connections.Remove(connection);
+                
                 await _db.SaveChangesAsync();
 
-                return Ok(new { message = "Connection removed successfully" });
+                Console.WriteLine($"Successfully removed connection and {chatsToDelete.Count} associated chats");
+                return Ok(new { message = "Connection and associated chats removed successfully" });
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error removing connection: {ex.Message}");
                 return StatusCode(500, $"Error removing connection: {ex.Message}");
             }
         }

@@ -4,7 +4,6 @@ using ClassConnectBackend.Data;
 using ClassConnectBackend.Models;
 
 namespace ClassConnectBackend.Controllers
-// this file defines the API endpoints for handling messages in a course
 {
     [Route("api/courses/{courseId}/messages")]
     [ApiController]
@@ -22,44 +21,89 @@ namespace ClassConnectBackend.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Message>>> GetMessages(int courseId)
         {
-            var messages = await _db.Messages
+            try
+            {
+                var messages = await _db.Messages
                     .Where(m => m.CourseId == courseId)
-                    .Include(m => m.Sender) // <-- This is the key line
+                    .Include(m => m.Sender)
                     .OrderBy(m => m.Timestamp)
                     .ToListAsync();
 
-                // You can project to an anonymous object or a DTO if needed
-                var result = messages.Select(m => new
-                {
-                    m.Id,
-                    m.Content,
-                    m.Timestamp,
-                    m.SenderId,
-                    m.FormattedTimestamp,
-                    Sender = m.Sender == null ? null : new
-                    {
-                        m.Sender.Id,
-                        m.Sender.Username, // Make sure this property exists in your User model
-                        m.Sender.ProfilePictureUrl // Optional
-                    }
-                });
-
-            // Return the list directly; FormattedTimestamp will be serialized along with the others
-            return Ok(messages);
+                Console.WriteLine($"Found {messages.Count} messages for course {courseId}");
+                return Ok(messages);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting messages: {ex.Message}");
+                return StatusCode(500, $"Error getting messages: {ex.Message}");
+            }
         }
 
         // sends and stores a new message to a specific course
         // POST: /api/courses/1/messages
         [HttpPost]
-        public async Task<IActionResult> SendMessage(int courseId, [FromBody] Message input)
+        public async Task<ActionResult> SendMessage(int courseId, [FromBody] SendMessageRequest request)
         {
-            input.CourseId = courseId;
-            input.Timestamp = DateTime.UtcNow;
+            try
+            {
+                Console.WriteLine($"Sending message to course {courseId}");
+                Console.WriteLine($"Request: {request.Content} from user {request.SenderId}");
 
-            _db.Messages.Add(input);
-            await _db.SaveChangesAsync();
+                // Validate the request
+                if (string.IsNullOrWhiteSpace(request.Content))
+                {
+                    return BadRequest("Message content is required");
+                }
 
-            return Ok(new { success = true });
+                // Get the user who is sending the message
+                var user = await _db.Users.FindAsync(request.SenderId);
+                if (user == null)
+                {
+                    return BadRequest("User not found");
+                }
+
+                // Validate the course exists
+                var course = await _db.Courses.FindAsync(courseId);
+                if (course == null)
+                {
+                    return BadRequest("Course not found");
+                }
+
+                // Create the message
+                var message = new Message
+                {
+                    Content = request.Content,
+                    SenderId = request.SenderId,
+                    CourseId = courseId,
+                    Timestamp = DateTime.UtcNow,
+                    Sender = user
+                };
+
+                // Save to database
+                _db.Messages.Add(message);
+                await _db.SaveChangesAsync();
+
+                Console.WriteLine($"Message saved successfully with ID: {message.Id}");
+
+                return Ok(new { 
+                    success = true, 
+                    messageId = message.Id,
+                    message = "Message sent successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending message: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, $"Error sending message: {ex.Message}");
+            }
         }
+    }
+
+    // Simple request model for sending messages
+    public class SendMessageRequest
+    {
+        public string Content { get; set; } = string.Empty;
+        public int SenderId { get; set; }
     }
 }

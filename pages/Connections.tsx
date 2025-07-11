@@ -7,12 +7,14 @@ import {
   UserPlusIcon,
   CheckIcon,
   XIcon,
+  MessageCircle,
 } from 'lucide-react'
 
 const API_BASE_URL = 'http://localhost:5082/api'
 
 interface Connection {
   id: number
+  userId: number  // This should match the "UserId" from the backend
   name: string
   major: string
   year: string
@@ -61,6 +63,7 @@ const Connections = () => {
     fetchSuggestions()
   }, [userId])
 
+  // is used to filter and get users who take the same courses.
   const fetchUserCourses = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/courses/user/${userId}`)
@@ -72,6 +75,7 @@ const Connections = () => {
     }
   }
 
+  // to get existing connections.
   const fetchConnections = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/Connection/accepted/${userId}`)
@@ -81,6 +85,7 @@ const Connections = () => {
     }
   }
 
+  // to get connection requests.
   const fetchRequests = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/Connection/pending/${userId}`)
@@ -90,6 +95,7 @@ const Connections = () => {
     }
   }
 
+  // gets suggestions
   const fetchSuggestions = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/Connection/suggestions/${userId}`)
@@ -99,6 +105,7 @@ const Connections = () => {
     }
   }
 
+  // handles accepting requests.
   const handleAcceptRequest = async (id: number) => {
     try {
       await axios.post(`${API_BASE_URL}/Connection/requests/${id}/accept`)
@@ -112,6 +119,7 @@ const Connections = () => {
     }
   }
 
+  // handles rejecting a request.
   const handleRejectRequest = async (id: number) => {
     try {
       await axios.post(`${API_BASE_URL}/Connection/requests/${id}/reject`)
@@ -124,6 +132,7 @@ const Connections = () => {
     }
   }
 
+  // handles when someone removes another user as a connection
   const handleRemoveConnection = async (id: number) => {
     try {
       await axios.delete(`${API_BASE_URL}/Connection/${id}`)
@@ -136,6 +145,7 @@ const Connections = () => {
     }
   }
 
+  // handle when a connect happens
   const handleConnect = async (receiverId: number) => {
     try {
       await axios.post(`${API_BASE_URL}/Connection/request`, {
@@ -155,6 +165,7 @@ const Connections = () => {
     }
   }
 
+  // filters the connections when you are looking for an existing connection
   const filterConnections = (list: (Connection | Suggestion)[]) => {
     return list.filter((conn) => {
       const matchesSearch = conn.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -254,6 +265,31 @@ const Connections = () => {
 }
 
 const ConnectionList = ({ connections, onRemove }: { connections: Connection[]; onRemove: (id: number) => void }) => {
+  // for redirecting users to a private chat of the user and their connection.
+  const handleStartChat = async (connectionId: number, otherUserId: number) => {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+    try {
+      console.log('Starting chat with user ID:', otherUserId, 'Current user:', currentUser.id);
+      
+      const response = await axios.post(`${API_BASE_URL}/Chat/create`, {
+        user1Id: currentUser.id,
+        user2Id: otherUserId
+      })
+      
+      const chatId = response.data.chatId
+      console.log('Created chat with ID:', chatId);
+      
+      // Add a small delay to ensure the chat is created
+      setTimeout(() => {
+        window.location.href = `/chat?type=private&chatId=${chatId}`
+      }, 100)
+    } catch (err: any) {
+      console.error('Error starting chat:', err)
+      console.error('Error response:', err.response?.data)
+      alert(`Failed to start chat: ${err.response?.data || err.message}`)
+    }
+  }
+
   if (!connections.length) return <EmptyState message="No connections found." />
   
   return (
@@ -268,12 +304,30 @@ const ConnectionList = ({ connections, onRemove }: { connections: Connection[]; 
               <div className="text-xs text-gray-400 dark:text-gray-500">{conn.courses.join(', ')}</div>
             </div>
           </div>
-          <button
-            onClick={() => onRemove(conn.id)}
-            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"
-          >
-            <XIcon size={16} /> Remove
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                console.log('Connection object:', conn);
+                console.log('UserId:', conn.userId);
+                
+                if (conn.userId) {
+                  handleStartChat(conn.id, conn.userId)
+                } else {
+                  console.error('UserId is missing from connection:', conn);
+                  alert('Cannot start chat: user ID is missing.');
+                }
+              }}
+              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"
+            >
+              <MessageCircle size={16} /> Chat
+            </button>
+            <button
+              onClick={() => onRemove(conn.id)}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"
+            >
+              <XIcon size={16} /> Remove
+            </button>
+          </div>
         </li>
       ))}
     </ul>

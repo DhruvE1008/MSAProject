@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react'
-// useParams is used to access URL parameters
-import { useParams, Link } from 'react-router-dom'
-import { SendIcon, UserIcon, MessageCircleIcon } from 'lucide-react'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
+import { SendIcon, UserIcon, MessageCircleIcon, Hash, ArrowLeft } from 'lucide-react'
+import axios from 'axios'
 
-interface Message {
+const API_BASE_URL = 'http://localhost:5082/api'
+
+// Course Chat interfaces (using simple working version)
+interface CourseMessage {
   id: number
-  sender: string
+  sender?: string
   text: string
   timestamp: string
   isCurrentUser: boolean
@@ -18,60 +21,120 @@ interface Course {
   code: string
 }
 
+// Private Chat interfaces (keeping current system)
+interface PrivateMessage {
+  id: number
+  content: string
+  sentAt: string
+  isFromMe: boolean
+  senderName: string
+  senderAvatar: string
+}
+
+interface PrivateChat {
+  id: number
+  chatId: number
+  otherUser: {
+    id: number
+    name: string
+    avatar: string
+  }
+  lastMessage: {
+    content: string
+    sentAt: string
+    isFromMe: boolean
+  } | null
+  unreadCount: number
+}
+
 const Chat = () => {
-    // Get courseId from URL parameters
   const { courseId } = useParams()
-  // setup state for messages, courses, selected course, and message input
+  const [searchParams] = useSearchParams()
+  const chatType = searchParams.get('type') || 'course'
+  const privateChatId = searchParams.get('chatId')
+
+  // State
   const [message, setMessage] = useState('')
-  // Messages will be an array of Message objects
-  // Each Message object contains id, sender, text, timestamp, isCurrentUser flag, and avatar URL 
-  const [messages, setMessages] = useState<Message[]>([])
-  // Courses will be an array of Course objects
-  const [courses, setCourses] = useState<Course[]>([])
-  // Selected course will be a Course object or null if no course is selected
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
-  // Ref to scroll to the bottom of the messages
-  // This is used to automatically scroll to the latest message when a new message is sent or received
+  const [activeTab, setActiveTab] = useState<'course' | 'private'>(chatType as 'course' | 'private')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
-const userId = currentUser.id;
+  // Course chat state (using simple working version)
+  const [courseMessages, setCourseMessages] = useState<CourseMessage[]>([])
+  const [courses, setCourses] = useState<Course[]>([])
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
 
-  // useEffect to fetch courses based on user ID
+  // Private chat state (keeping current system)
+  const [privateMessages, setPrivateMessages] = useState<PrivateMessage[]>([])
+  const [privateChats, setPrivateChats] = useState<PrivateChat[]>([])
+  const [selectedPrivateChat, setSelectedPrivateChat] = useState<PrivateChat | null>(null)
+
+  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+  const userId = currentUser.id
+
+  // Initialize based on URL params
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const res = await fetch(`http://localhost:5082/api/courses/user/${userId}`)
-        const data = await res.json()
-        setCourses(data)
+    if (chatType === 'private') {
+      setActiveTab('private')
+      fetchPrivateChats()
+    } else {
+      setActiveTab('course')
+      fetchCourses()
+    }
+  }, [chatType, courseId])
 
-        if (courseId) {
-          const course = data.find((c: Course) => c.id === parseInt(courseId))
-          if (course) {
-            setSelectedCourse(course)
-            loadMessagesForCourse(course.id)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching courses:', error)
+  // Handle private chat selection after fetching
+  useEffect(() => {
+    if (privateChatId && privateChats.length > 0) {
+      const chatIdNum = parseInt(privateChatId)
+      const chat = privateChats.find(c => c.id === chatIdNum || c.chatId === chatIdNum)
+      
+      if (chat) {
+        setSelectedPrivateChat(chat)
+        fetchPrivateMessages(chat.chatId || chat.id)
       }
     }
+  }, [privateChatId, privateChats])
 
-    fetchCourses()
-  }, [courseId])
+  // ========== COURSE CHAT FUNCTIONS (Simple Working Version) ==========
+  
+  // Fetch courses
+  const fetchCourses = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/courses/user/${userId}`)
+      const data = await res.json()
+      setCourses(data)
 
-  // Function to load messages for a specific course
+      if (courseId) {
+        const course = data.find((c: Course) => c.id === parseInt(courseId))
+        if (course) {
+          setSelectedCourse(course)
+          loadMessagesForCourse(course.id)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error)
+    }
+  }
+
+  // Load messages for course - simple version that works
   const loadMessagesForCourse = async (courseId: number) => {
     try {
-      const res = await fetch(`http://localhost:5082/api/courses/${courseId}/messages`);
-      const data = await res.json();
+      console.log('Loading messages for course:', courseId)
+      const res = await fetch(`${API_BASE_URL}/courses/${courseId}/messages`)
+      console.log('Response status:', res.status)
+      
+      if (!res.ok) {
+        throw new Error(`Failed to load messages: ${res.status}`)
+      }
+      
+      const data = await res.json()
+      console.log('Raw messages from server:', data)
 
+      // Your MessageController returns messages with lowercase properties due to JSON serialization
       const formatted = data.map((msg: any) => ({
         id: msg.id,
         text: msg.content,
-        // the timestamp is formatted to a more readable format
-        // with date and time
-        timestamp: new Date(msg.timestamp).toLocaleString('en-US', {
+        timestamp: msg.formattedTimestamp || new Date(msg.timestamp).toLocaleString('en-US', {
           month: 'short',
           day: '2-digit',
           year: 'numeric',
@@ -79,98 +142,286 @@ const userId = currentUser.id;
           minute: '2-digit',
           hour12: true,
         }).replace(',', ' -'),
-        sender: msg.sender.username, // Optionally replace with real name
-        isCurrentUser: msg.senderId === userId, 
-        avatar: msg.sender.profilePictureUrl
-      }));
+        sender: msg.sender?.username || 'Unknown',
+        isCurrentUser: msg.senderId === userId,
+        avatar: msg.sender?.profilePictureUrl || '/default-avatar.png'
+      }))
 
-      setMessages(formatted);
+      console.log('Formatted messages:', formatted)
+      setCourseMessages(formatted)
     } catch (err) {
-      console.error("Failed to load messages", err);
+      console.error("Failed to load messages:", err)
     }
-  };
+  }
 
-  // allows user to select a course from the list
+  // Handle course selection
   const handleSelectCourse = (course: Course) => {
     setSelectedCourse(course)
     loadMessagesForCourse(course.id)
   }
 
-  // Handle sending a new message
-const handleSendMessage = async (e: React.FormEvent) => {
-      // e is the react event object
-    // prevent default is used to stop the form from reloading the page
-  e.preventDefault();
-      // Check if message is not empty and a course is selected
-  if (!message.trim() || !selectedCourse) return;
+  // Send course message - now works with updated MessageController
+  const handleSendCourseMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!message.trim() || !selectedCourse) return
 
-  const newMsg = {
-    senderId: userId, // Replace with actual logged-in user ID
-    content: message
-  };
+    // Simple request object that matches SendMessageRequest
+    const messageData = {
+      content: message,
+      senderId: userId
+    }
 
-  // sends the new message to the backend API
-  try {
-    const res = await fetch(`http://localhost:5082/api/courses/${selectedCourse.id}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newMsg)
-    });
+    console.log('Sending message:', messageData)
 
-    if (!res.ok) throw new Error("Failed to send message");
+    try {
+      const res = await fetch(`${API_BASE_URL}/courses/${selectedCourse.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(messageData)
+      })
 
-    // Add to messages list (optimistically)
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        text: message,
-        sender: 'You',
-        isCurrentUser: true,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        avatar: 'https://api.dicebear.com/7.x/thumbs/svg?seed=you'
+      console.log('Response status:', res.status)
+
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error('Error:', errorText)
+        throw new Error(`Failed to send message: ${res.status}`)
       }
-    ]);
 
-    setMessage('');
-  } catch (err) {
-    console.error("Failed to send message", err);
+      const responseData = await res.json()
+      console.log('Success response:', responseData)
+
+      // Clear message and reload
+      setMessage('')
+      loadMessagesForCourse(selectedCourse.id)
+      
+    } catch (err) {
+      console.error("Failed to send message:", err)
+      alert(`Failed to send message: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
   }
-};
 
+  // ========== PRIVATE CHAT FUNCTIONS (Current System) ==========
 
-  // Scroll to the bottom of the messages when they change
+  // Fetch private chats
+  const fetchPrivateChats = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/Chat/user/${userId}`)
+      console.log('Fetched private chats:', response.data)
+      
+      const chats = response.data.map((chat: any) => ({
+        ...chat,
+        chatId: chat.chatId || chat.id
+      }))
+      
+      setPrivateChats(chats)
+    } catch (err) {
+      console.error('Error fetching private chats:', err)
+    }
+  }
+
+  // Fetch private messages
+  const fetchPrivateMessages = async (chatId: number) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/Chat/${chatId}/messages?userId=${userId}`)
+      setPrivateMessages(response.data)
+    } catch (err) {
+      console.error('Error fetching private messages:', err)
+    }
+  }
+
+  // Send private message
+  const handleSendPrivateMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!message.trim() || !selectedPrivateChat) return
+
+    try {
+      const chatId = selectedPrivateChat.chatId || selectedPrivateChat.id
+      
+      await axios.post(`${API_BASE_URL}/Chat/${chatId}/messages`, {
+        senderId: userId,
+        content: message
+      })
+      
+      setMessage('')
+      fetchPrivateMessages(chatId)
+    } catch (err) {
+      console.error('Error sending private message:', err)
+    }
+  }
+
+  // ========== SHARED FUNCTIONS ==========
+
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [courseMessages, privateMessages])
+
+  // Tab switching handler
+  const handleTabSwitch = (tab: 'course' | 'private') => {
+    setActiveTab(tab)
+    if (tab === 'course') {
+      fetchCourses()
+    } else {
+      fetchPrivateChats()
+    }
+  }
+
+  // Helper function to format message timestamps
+  const formatMessageTime = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp)
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid timestamp:', timestamp)
+        return 'Invalid date'
+      }
+      return date.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })
+    } catch (error) {
+      console.error('Error formatting timestamp:', timestamp, error)
+      return 'Invalid date'
+    }
+  }
 
   return (
     <div className="h-[calc(100vh-10rem)] flex flex-col md:flex-row">
+      {/* Sidebar */}
       <div className="w-full md:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+        {/* Header with back button and tabs */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="font-semibold text-lg">Course Chats</h2>
-        </div>
-        <div className="p-2">
-          {courses.map((course) => (
+          <div className="flex items-center gap-3 mb-4">
             <button
-              key={course.id}
-              onClick={() => handleSelectCourse(course)}
-              className={`w-full text-left p-3 rounded-lg mb-1 ${selectedCourse?.id === course.id ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+              onClick={() => window.history.back()}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
-              <p className="font-medium truncate">{course.name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{course.code}</p>
+              <ArrowLeft size={20} />
             </button>
-          ))}
+            <h2 className="font-semibold text-lg">Chat</h2>
+          </div>
+          
+          {/* Tab Toggle */}
+          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <button
+              onClick={() => handleTabSwitch('course')}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'course'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              <Hash size={14} className="inline mr-1" />
+              Courses
+            </button>
+            <button
+              onClick={() => handleTabSwitch('private')}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'private'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              <MessageCircleIcon size={14} className="inline mr-1" />
+              Private
+            </button>
+          </div>
+        </div>
+
+        {/* Chat List */}
+        <div className="p-2">
+          {activeTab === 'course' ? (
+            // Course List (Simple Working Version)
+            courses.map((course) => (
+              <button
+                key={course.id}
+                onClick={() => handleSelectCourse(course)}
+                className={`w-full text-left p-3 rounded-lg mb-1 ${
+                  selectedCourse?.id === course.id 
+                    ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-blue-500 rounded-md flex items-center justify-center flex-shrink-0">
+                    <Hash size={12} className="text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{course.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{course.code}</p>
+                  </div>
+                </div>
+              </button>
+            ))
+          ) : (
+            // Private Chat List (Current System)
+            <>
+              {privateChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => {
+                    setSelectedPrivateChat(chat)
+                    fetchPrivateMessages(chat.chatId || chat.id)
+                  }}
+                  className={`w-full text-left p-3 rounded-lg mb-1 ${
+                    selectedPrivateChat?.id === chat.id
+                      ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={chat.otherUser.avatar || '/default-avatar.png'}
+                      alt={chat.otherUser.name}
+                      className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium truncate pr-2">{chat.otherUser.name}</p>
+                        {chat.unreadCount > 0 && (
+                          <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full flex-shrink-0">
+                            {chat.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      {chat.lastMessage && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {chat.lastMessage.isFromMe ? 'You: ' : ''}
+                          {chat.lastMessage.content}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+              
+              {privateChats.length === 0 && (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-6">
+                  <MessageCircleIcon className="mx-auto h-8 w-8 mb-2" />
+                  <p className="text-sm">No private chats yet</p>
+                  <p className="text-xs">Start a chat from connections</p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 
+      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        {selectedCourse ? (
+        {/* Course Chat (Simple Working Version) */}
+        {activeTab === 'course' && selectedCourse ? (
           <>
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <div>
-                <h2 className="font-semibold text-lg">{selectedCourse.name}</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCourse.code}</p>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                  <Hash size={16} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-lg">{selectedCourse.name}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCourse.code}</p>
+                </div>
               </div>
               <Link
                 to={`/courses`}
@@ -182,61 +433,54 @@ const handleSendMessage = async (e: React.FormEvent) => {
             </div>
 
             <div className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-              {messages.map((msg) => (
-               <div
-                key={msg.id}
-                className={`flex mb-8 ${msg.isCurrentUser ? 'justify-end' : 'justify-start'} items-start`} // Changed from items-end to items-start
-              >
-                {!msg.isCurrentUser && (
-                  <img
-                    src={msg.avatar}
-                    alt={msg.sender}
-                    className="h-8 w-8 rounded-full mr-2 mt-10" // Added mt-1 for slight offset
-                  />
-                )}
-                {/* If the message is from the user then it goes on the right of the chat and otherwise its on the left with the name shown of the user. */}
-                <div className={`max-w-[70%] ${msg.isCurrentUser ? 'order-1' : 'order-2'}`}>
+              {courseMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex mb-8 ${msg.isCurrentUser ? 'justify-end' : 'justify-start'} items-start`}
+                >
                   {!msg.isCurrentUser && (
-                    <p className="text-s mb-1">{msg.sender}</p>
+                    <img
+                      src={msg.avatar}
+                      alt={msg.sender}
+                      className="h-8 w-8 rounded-full mr-2 mt-10"
+                    />
                   )}
-                  {msg.isCurrentUser && (
-                    <p className="text-s mb-1 text-right">{msg.sender}</p>
-                  )}
-                  <div
-                    className={`p-3 rounded-lg ${
-                      msg.isCurrentUser
-                        ? 'bg-blue-600 text-white rounded-br-none'
-                        : 'bg-white dark:bg-gray-800 rounded-bl-none'
-                    }`}
-                  >
-                    <p>{msg.text}</p>
+                  <div className={`max-w-[70%] ${msg.isCurrentUser ? 'order-1' : 'order-2'}`}>
+                    {!msg.isCurrentUser && (
+                      <p className="text-s mb-1">{msg.sender}</p>
+                    )}
+                    {msg.isCurrentUser && (
+                      <p className="text-s mb-1 text-right">{msg.sender}</p>
+                    )}
+                    <div
+                      className={`p-3 rounded-lg ${
+                        msg.isCurrentUser
+                          ? 'bg-blue-600 text-white rounded-br-none'
+                          : 'bg-white dark:bg-gray-800 rounded-bl-none'
+                      }`}
+                    >
+                      <p>{msg.text}</p>
+                    </div>
+                    <p className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${
+                      msg.isCurrentUser ? 'text-right' : 'text-left'
+                    }`}>
+                      {msg.timestamp}
+                    </p>
                   </div>
-                  {!msg.isCurrentUser && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
-                      {msg.timestamp}
-                    </p>
-                  )}
                   {msg.isCurrentUser && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">
-                      {msg.timestamp}
-                    </p>
+                    <img
+                      src={msg.avatar}
+                      alt={msg.sender}
+                      className="h-8 w-8 rounded-full ml-2 mt-9"
+                    />
                   )}
                 </div>
-
-                {msg.isCurrentUser && (
-                  <img
-                    src={msg.avatar}
-                    alt={msg.sender}
-                    className="h-8 w-8 rounded-full mr-2 mt-9" // Added mt-1 for slight offset
-                  />
-                )}
-              </div>
               ))}
               <div ref={messagesEndRef} />
             </div>
 
             <form
-              onSubmit={handleSendMessage}
+              onSubmit={handleSendCourseMessage}
               className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700"
             >
               <div className="flex">
@@ -244,7 +488,7 @@ const handleSendMessage = async (e: React.FormEvent) => {
                   type="text"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type your message..."
+                  placeholder={`Message ${selectedCourse.name}...`}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700"
                 />
                 <button
@@ -256,16 +500,110 @@ const handleSendMessage = async (e: React.FormEvent) => {
               </div>
             </form>
           </>
-          // ) : ( If no course is selected, show a placeholder message
+        ) : activeTab === 'private' && selectedPrivateChat ? (
+          // Private Chat (Current System)
+          <>
+            <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <img
+                  src={selectedPrivateChat.otherUser.avatar || '/default-avatar.png'}
+                  alt={selectedPrivateChat.otherUser.name}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+                <div>
+                  <h2 className="font-semibold text-lg">{selectedPrivateChat.otherUser.name}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Private Chat</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+              {privateMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex mb-8 ${msg.isFromMe ? 'justify-end' : 'justify-start'} items-start`}
+                >
+                  {!msg.isFromMe && (
+                    <img
+                      src={msg.senderAvatar || '/default-avatar.png'}
+                      alt={msg.senderName}
+                      className="h-8 w-8 rounded-full mr-2 mt-10"
+                    />
+                  )}
+                  <div className={`max-w-[70%] ${msg.isFromMe ? 'order-1' : 'order-2'}`}>
+                    {!msg.isFromMe && (
+                      <p className="text-s mb-1">{msg.senderName}</p>
+                    )}
+                    {msg.isFromMe && (
+                      <p className="text-s mb-1 text-right">You</p>
+                    )}
+                    <div
+                      className={`p-3 rounded-lg ${
+                        msg.isFromMe
+                          ? 'bg-blue-600 text-white rounded-br-none'
+                          : 'bg-white dark:bg-gray-800 rounded-bl-none'
+                      }`}
+                    >
+                      <p>{msg.content}</p>
+                    </div>
+                    <p className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${
+                      msg.isFromMe ? 'text-right' : 'text-left'
+                    }`}>
+                      {formatMessageTime(msg.sentAt)}
+                    </p>
+                  </div>
+                  {msg.isFromMe && (
+                    <img
+                      src={currentUser.profilePictureUrl || '/default-avatar.png'}
+                      alt="You"
+                      className="h-8 w-8 rounded-full ml-2 mt-9"
+                    />
+                  )}
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <form
+              onSubmit={handleSendPrivateMessage}
+              className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700"
+            >
+              <div className="flex">
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder={`Message ${selectedPrivateChat.otherUser.name}...`}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  <SendIcon size={18} />
+                </button>
+              </div>
+            </form>
+          </>
         ) : (
+          // No selection placeholder
           <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
             <div className="text-center p-6">
               <div className="bg-blue-100 dark:bg-blue-900/30 p-6 rounded-full inline-flex items-center justify-center mb-4">
-                <MessageCircleIcon size={32} className="text-blue-600 dark:text-blue-400" />
+                {activeTab === 'course' ? (
+                  <Hash size={32} className="text-blue-600 dark:text-blue-400" />
+                ) : (
+                  <MessageCircleIcon size={32} className="text-blue-600 dark:text-blue-400" />
+                )}
               </div>
-              <h2 className="text-xl font-semibold mb-2">Select a Course Chat</h2>
+              <h2 className="text-xl font-semibold mb-2">
+                {activeTab === 'course' ? 'Select a Course Chat' : 'Select a Private Chat'}
+              </h2>
               <p className="text-gray-600 dark:text-gray-400 max-w-sm">
-                Choose a course from the sidebar to join the conversation with your classmates.
+                {activeTab === 'course' 
+                  ? 'Choose a course from the sidebar to join the conversation with your classmates.'
+                  : 'Choose a private chat from the sidebar to start messaging with your connections.'
+                }
               </p>
             </div>
           </div>

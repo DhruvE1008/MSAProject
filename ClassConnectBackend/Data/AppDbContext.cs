@@ -16,6 +16,8 @@ namespace ClassConnectBackend.Data
         public DbSet<Course> Courses => Set<Course>();
         public DbSet<Message> Messages => Set<Message>();
         public DbSet<Connection> Connections { get; set; }
+        public DbSet<Chat> Chats { get; set; } // Add this
+        public DbSet<ChatMessage> ChatMessages { get; set; } // Add this
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -34,6 +36,31 @@ namespace ClassConnectBackend.Data
                 .HasOne(c => c.Receiver)
                 .WithMany()
                 .HasForeignKey(c => c.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Chat relationships
+            modelBuilder.Entity<Chat>()
+                .HasOne(c => c.User1)
+                .WithMany()
+                .HasForeignKey(c => c.User1Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Chat>()
+                .HasOne(c => c.User2)
+                .WithMany()
+                .HasForeignKey(c => c.User2Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(cm => cm.Chat)
+                .WithMany(c => c.Messages)
+                .HasForeignKey(cm => cm.ChatId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(cm => cm.Sender)
+                .WithMany()
+                .HasForeignKey(cm => cm.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

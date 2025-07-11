@@ -17,15 +17,14 @@ used in terminal when doing npm *
 
 I used postgreSQL for the database where I store all my relations and my backend communicates with.
 
+migrations is a part of dotnet which updates the schema in my code and keeps it in sync with the database I
+have in postgreSQL.
+
 Work to Do:
-explain what migrations is in this file
-add connection features: get private chats with others
-then change home page
-
-
 Advanced feature - websockets for chat and connection requests.
 make it so that when you update things in the page, it notifies the user with a better notification.
 implement notifications feature for the bell things
+then change home page
 deploy.
 maybe have an admin mode so people cant delete courses.
 README file and video.
