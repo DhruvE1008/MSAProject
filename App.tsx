@@ -27,15 +27,17 @@ type User = {
 export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  // allows the web app to remember the user after they log in or sign up
+
   const handleLogin = () => {
     setIsAuthenticated(true);
-    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+    // Remove this line - user data is already saved in Login.tsx
+    // sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
   };
 
   const handleSignUp = () => {
     setIsAuthenticated(true);
-    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+    // Remove this line - user data is already saved in SignUp.tsx
+    // sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
   };
   
   const handleLogout = () => {

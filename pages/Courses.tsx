@@ -19,12 +19,11 @@ interface Course {
   studentIds?: number[]; // ✅ Optional field to simulate enrollment
 }
 
-  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-  const userId = currentUser.id;
-
 const departments = ['All', 'Computer Science', 'Mathematics', 'Physics', 'Chemistry', 'Biology']
 
 const Courses = () => {
+  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+  const userId = currentUser.id;
   const [courses, setCourses] = useState<Course[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDepartment, setSelectedDepartment] = useState('All')
@@ -53,7 +52,7 @@ useEffect(() => {
   axios.get<Course[]>(`http://localhost:5082/api/courses/user/${userId}`)
     .then(res => setEnrolledCourses(res.data))
     .catch(err => console.error("Failed to fetch user's enrolled courses", err))
-}, [])
+}, [userId])
 
 
   const handleRemoveCourse = (courseId: number) => {

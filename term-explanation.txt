@@ -18,8 +18,12 @@ used in terminal when doing npm *
 I used postgreSQL for the database where I store all my relations and my backend communicates with.
 
 Work to Do:
+explain what migrations is in this file
 add connection features: get private chats with others
-Advanced feature
+then change home page
+
+
+Advanced feature - websockets for chat and connection requests.
 make it so that when you update things in the page, it notifies the user with a better notification.
 implement notifications feature for the bell things
 deploy.

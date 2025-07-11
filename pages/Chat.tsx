@@ -34,7 +34,7 @@ const Chat = () => {
   // This is used to automatically scroll to the latest message when a new message is sent or received
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
 const userId = currentUser.id;
 
   // useEffect to fetch courses based on user ID

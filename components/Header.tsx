@@ -19,20 +19,35 @@ interface ProfileData {
 // components are reusable pieces of code that can be used in different parts of the application.
 // the header is a component because it will be used in every page of the application.
 const Header = () => {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-  const userId = currentUser.id;
+  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+  // Try both lowercase and uppercase
+  const userId = currentUser.id || currentUser.Id;
   const [profile, setProfile] = useState<ProfileData | null>(null)
+  
+  console.log('Header - currentUser:', currentUser)
+  console.log('Header - userId:', userId)
+  
   useEffect(() => {
+    console.log('useEffect running with userId:', userId)
+    
+    if (!userId) {
+      console.log('No userId found in header')
+      return
+    }
+
     const fetchData = async () => {
       try {
+        console.log('Fetching profile for user:', userId)
         const profileRes = await axios.get(`http://localhost:5082/api/users/${userId}`)
+        console.log('Profile data received:', profileRes.data)
         setProfile(profileRes.data)
       } catch (e) {
         console.error("Failed to load profile data", e)
       }
     }
     fetchData()
-  },  []) // a dependency array is used to run the effect only once when the component mounts.
+  }, [userId])
+
   return (
     // tailwindcss stuff is basically where the CSS is written inline in HTML like syntax.
     <header className="bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex items-center justify-between">

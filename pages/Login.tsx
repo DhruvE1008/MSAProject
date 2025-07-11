@@ -19,8 +19,8 @@ const Login = ({ onLogin }: LoginProps) => {
 
       if (response.status === 200) {
         const user = response.data
-        // Save user info locally, e.g. in localStorage or context
-        localStorage.setItem('currentUser', JSON.stringify(user))
+        // Change from localStorage to sessionStorage
+        sessionStorage.setItem('currentUser', JSON.stringify(user))
         onLogin() // notify parent component about login success
       }
     } catch (err: any) {

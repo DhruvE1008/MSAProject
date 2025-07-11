@@ -20,7 +20,7 @@ interface ProfileData {
 }
 
 const Profile = () => {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
   const userId = currentUser.id;
   const [isEditing, setIsEditing] = useState(false)
   const [profile, setProfile] = useState<ProfileData | null>(null)

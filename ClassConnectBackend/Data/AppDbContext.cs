@@ -14,8 +14,8 @@ namespace ClassConnectBackend.Data
 
         public DbSet<User> Users => Set<User>();
         public DbSet<Course> Courses => Set<Course>();
-        public DbSet<ConnectionRequest> ConnectionRequests => Set<ConnectionRequest>();
         public DbSet<Message> Messages => Set<Message>();
+        public DbSet<Connection> Connections { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -23,6 +23,18 @@ namespace ClassConnectBackend.Data
             modelBuilder.Entity<User>()
                 .HasMany(u => u.EnrolledCourses)
                 .WithMany(c => c.Members);
+            
+            modelBuilder.Entity<Connection>()
+                .HasOne(c => c.Requester)
+                .WithMany()
+                .HasForeignKey(c => c.RequesterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Connection>()
+                .HasOne(c => c.Receiver)
+                .WithMany()
+                .HasForeignKey(c => c.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
