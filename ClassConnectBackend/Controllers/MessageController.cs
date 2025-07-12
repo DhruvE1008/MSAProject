@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using ClassConnectBackend.Data;
 using ClassConnectBackend.Models;
+using ClassConnectBackend.Hubs;
 
 namespace ClassConnectBackend.Controllers
 {
@@ -10,10 +12,12 @@ namespace ClassConnectBackend.Controllers
     public class MessagesController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public MessagesController(AppDbContext db)
+        public MessagesController(AppDbContext db, IHubContext<ChatHub> hubContext)
         {
             _db = db;
+            _hubContext = hubContext;
         }
 
         // gets all messages for a specific course
@@ -47,7 +51,6 @@ namespace ClassConnectBackend.Controllers
             try
             {
                 Console.WriteLine($"Sending message to course {courseId}");
-                Console.WriteLine($"Request: {request.Content} from user {request.SenderId}");
 
                 // Validate the request
                 if (string.IsNullOrWhiteSpace(request.Content))
@@ -83,7 +86,19 @@ namespace ClassConnectBackend.Controllers
                 _db.Messages.Add(message);
                 await _db.SaveChangesAsync();
 
-                Console.WriteLine($"Message saved successfully with ID: {message.Id}");
+                // Send real-time message to all users in the course group
+                await _hubContext.Clients.Group($"course_{courseId}").SendAsync("ReceiveCourseMessage", new
+                {
+                    id = message.Id,
+                    content = message.Content,
+                    sender = user.Name,
+                    senderId = user.Id,
+                    avatar = user.ProfilePictureUrl ?? "/default-avatar.png",
+                    timestamp = message.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                    courseId = courseId
+                });
+
+                Console.WriteLine($"Message saved and broadcast with ID: {message.Id}");
 
                 return Ok(new { 
                     success = true, 
@@ -94,7 +109,6 @@ namespace ClassConnectBackend.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"Error sending message: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return StatusCode(500, $"Error sending message: {ex.Message}");
             }
         }

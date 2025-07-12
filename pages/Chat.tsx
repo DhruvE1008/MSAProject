@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { SendIcon, UserIcon, MessageCircleIcon, Hash, ArrowLeft } from 'lucide-react'
-import axios from 'axios'
+import axios from 'axios' 
+import * as signalR from '@microsoft/signalr'
 
 const API_BASE_URL = 'http://localhost:5082/api'
 
-// Course Chat interfaces (using simple working version)
+// Course Chat interfaces
 interface CourseMessage {
   id: number
   sender?: string
@@ -21,7 +22,7 @@ interface Course {
   code: string
 }
 
-// Private Chat interfaces (keeping current system)
+// Private Chat interfaces
 interface PrivateMessage {
   id: number
   content: string
@@ -58,15 +59,21 @@ const Chat = () => {
   const [activeTab, setActiveTab] = useState<'course' | 'private'>(chatType as 'course' | 'private')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Course chat state (using simple working version)
+  // Course chat state
   const [courseMessages, setCourseMessages] = useState<CourseMessage[]>([])
   const [courses, setCourses] = useState<Course[]>([])
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
 
-  // Private chat state (keeping current system)
+  // Private chat state
   const [privateMessages, setPrivateMessages] = useState<PrivateMessage[]>([])
   const [privateChats, setPrivateChats] = useState<PrivateChat[]>([])
   const [selectedPrivateChat, setSelectedPrivateChat] = useState<PrivateChat | null>(null)
+
+  // SignalR connection
+  const [connection, setConnection] = useState<signalR.HubConnection | null>(null)
+
+  // Add a new state for ALL private messages (not just current chat)
+  const [allPrivateMessages, setAllPrivateMessages] = useState<{[chatId: string]: PrivateMessage[]}>({})
 
   const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
   const userId = currentUser.id
@@ -90,12 +97,184 @@ const Chat = () => {
       
       if (chat) {
         setSelectedPrivateChat(chat)
-        fetchPrivateMessages(chat.chatId || chat.id)
+        // Only fetch if we don't have messages for this chat
+        const chatId = chat.chatId || chat.id
+        if (!allPrivateMessages[chatId.toString()] || allPrivateMessages[chatId.toString()].length === 0) {
+          fetchPrivateMessages(chatId)
+        }
       }
     }
   }, [privateChatId, privateChats])
 
-  // ========== COURSE CHAT FUNCTIONS (Simple Working Version) ==========
+  // Initialize SignalR connection
+  useEffect(() => {
+    const newConnection = new signalR.HubConnectionBuilder()
+      .withUrl('http://localhost:5082/chatHub')
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Information)
+      .build()
+
+    newConnection.start()
+      .then(() => {
+        setConnection(newConnection)
+      })
+      .catch(err => {
+        console.error('SignalR Connection Error:', err)
+      })
+
+    return () => {
+      if (newConnection.state === signalR.HubConnectionState.Connected) {
+        newConnection.stop()
+      }
+    }
+  }, [])
+
+  // Set up course message listener
+  useEffect(() => {
+    if (!connection || connection.state !== signalR.HubConnectionState.Connected) return
+
+    const handleCourseMessage = (messageData: any) => {
+      const messageIsForCurrentCourse = selectedCourse && 
+        (messageData.courseId.toString() === selectedCourse.id.toString())
+      
+      if (messageIsForCurrentCourse) {
+        const formattedMessage = {
+          id: messageData.id,
+          text: messageData.content,
+          sender: messageData.sender,
+          isCurrentUser: messageData.senderId === userId,
+          timestamp: new Date(messageData.timestamp).toLocaleString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          }).replace(',', ' -'),
+          avatar: messageData.avatar
+        }
+        
+        setCourseMessages(prev => [...prev, formattedMessage])
+      }
+    }
+
+    connection.off('ReceiveCourseMessage')
+    connection.on('ReceiveCourseMessage', handleCourseMessage)
+
+    return () => {
+      connection.off('ReceiveCourseMessage', handleCourseMessage)
+    }
+  }, [connection, selectedCourse, userId])
+
+  // Set up private message listener
+  useEffect(() => {
+    if (!connection || connection.state !== signalR.HubConnectionState.Connected) return
+
+    const handlePrivateMessage = (messageData: any) => {
+      const formattedMessage = {
+        id: messageData.id,
+        content: messageData.content,
+        senderName: messageData.sender,
+        isFromMe: messageData.senderId === userId,
+        sentAt: messageData.timestamp,
+        senderAvatar: messageData.avatar
+      }
+      
+      // Add message to the appropriate chat in allPrivateMessages
+      setAllPrivateMessages(prev => {
+        const chatId = messageData.chatId.toString()
+        const existingMessages = prev[chatId] || []
+        const newMessages = [...existingMessages, formattedMessage]
+        return {
+          ...prev,
+          [chatId]: newMessages
+        }
+      })
+      
+      // Update the private chat list to show the latest message
+      setPrivateChats(prevChats => {
+        return prevChats.map(chat => {
+          const chatId = (chat.chatId || chat.id).toString()
+          if (chatId === messageData.chatId.toString()) {
+            return {
+              ...chat,
+              lastMessage: {
+                content: messageData.content,
+                sentAt: messageData.timestamp,
+                isFromMe: messageData.senderId === userId
+              }
+            }
+          }
+          return chat
+        })
+      })
+    }
+
+    connection.off('ReceivePrivateMessage')
+    connection.on('ReceivePrivateMessage', handlePrivateMessage)
+
+    return () => {
+      connection.off('ReceivePrivateMessage', handlePrivateMessage)
+    }
+  }, [connection, userId])
+
+  // Update privateMessages when selectedPrivateChat OR allPrivateMessages changes
+  useEffect(() => {
+    if (selectedPrivateChat) {
+      const chatId = (selectedPrivateChat.chatId || selectedPrivateChat.id).toString()
+      const messagesForChat = allPrivateMessages[chatId] || []
+      setPrivateMessages(messagesForChat)
+    }
+  }, [selectedPrivateChat, allPrivateMessages])
+
+  // Join/leave course groups when selectedCourse changes
+  useEffect(() => {
+    if (connection && connection.state === signalR.HubConnectionState.Connected && selectedCourse) {
+      connection.invoke('JoinCourseGroup', selectedCourse.id.toString())
+        .catch(() => {})
+      
+      return () => {
+        if (connection.state === signalR.HubConnectionState.Connected) {
+          connection.invoke('LeaveCourseGroup', selectedCourse.id.toString())
+            .catch(() => {})
+        }
+      }
+    }
+  }, [connection, selectedCourse])
+
+  // Join/leave private chat groups when selectedPrivateChat changes
+  useEffect(() => {
+    if (connection && connection.state === signalR.HubConnectionState.Connected && selectedPrivateChat) {
+      const chatId = selectedPrivateChat.chatId || selectedPrivateChat.id
+      
+      connection.invoke('JoinPrivateChat', chatId.toString())
+        .catch(() => {})
+      
+      return () => {
+        if (connection.state === signalR.HubConnectionState.Connected) {
+          connection.invoke('LeavePrivateChat', chatId.toString())
+            .catch(() => {})
+        }
+      }
+    }
+  }, [connection, selectedPrivateChat])
+
+  // Auto-scroll to bottom when messages change or when switching chats
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [courseMessages, privateMessages])
+
+  // Additional scroll to bottom when switching private chats
+  useEffect(() => {
+    if (selectedPrivateChat) {
+      // Use setTimeout to ensure the messages are rendered first
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    }
+  }, [selectedPrivateChat])
+
+  // ========== COURSE CHAT FUNCTIONS ==========
   
   // Fetch courses
   const fetchCourses = async () => {
@@ -116,21 +295,17 @@ const Chat = () => {
     }
   }
 
-  // Load messages for course - simple version that works
+  // Load messages for course
   const loadMessagesForCourse = async (courseId: number) => {
     try {
-      console.log('Loading messages for course:', courseId)
       const res = await fetch(`${API_BASE_URL}/courses/${courseId}/messages`)
-      console.log('Response status:', res.status)
       
       if (!res.ok) {
         throw new Error(`Failed to load messages: ${res.status}`)
       }
       
       const data = await res.json()
-      console.log('Raw messages from server:', data)
 
-      // Your MessageController returns messages with lowercase properties due to JSON serialization
       const formatted = data.map((msg: any) => ({
         id: msg.id,
         text: msg.content,
@@ -147,7 +322,6 @@ const Chat = () => {
         avatar: msg.sender?.profilePictureUrl || '/default-avatar.png'
       }))
 
-      console.log('Formatted messages:', formatted)
       setCourseMessages(formatted)
     } catch (err) {
       console.error("Failed to load messages:", err)
@@ -160,19 +334,16 @@ const Chat = () => {
     loadMessagesForCourse(course.id)
   }
 
-  // Send course message - now works with updated MessageController
+  // Send course message
   const handleSendCourseMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!message.trim() || !selectedCourse) return
 
-    // Simple request object that matches SendMessageRequest
     const messageData = {
       content: message,
       senderId: userId
     }
-
-    console.log('Sending message:', messageData)
 
     try {
       const res = await fetch(`${API_BASE_URL}/courses/${selectedCourse.id}/messages`, {
@@ -181,34 +352,24 @@ const Chat = () => {
         body: JSON.stringify(messageData)
       })
 
-      console.log('Response status:', res.status)
-
       if (!res.ok) {
-        const errorText = await res.text()
-        console.error('Error:', errorText)
         throw new Error(`Failed to send message: ${res.status}`)
       }
 
-      const responseData = await res.json()
-      console.log('Success response:', responseData)
-
-      // Clear message and reload
       setMessage('')
-      loadMessagesForCourse(selectedCourse.id)
       
     } catch (err) {
       console.error("Failed to send message:", err)
-      alert(`Failed to send message: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert('Failed to send message. Please try again.')
     }
   }
 
-  // ========== PRIVATE CHAT FUNCTIONS (Current System) ==========
+  // ========== PRIVATE CHAT FUNCTIONS ==========
 
   // Fetch private chats
   const fetchPrivateChats = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/Chat/user/${userId}`)
-      console.log('Fetched private chats:', response.data)
       
       const chats = response.data.map((chat: any) => ({
         ...chat,
@@ -225,7 +386,14 @@ const Chat = () => {
   const fetchPrivateMessages = async (chatId: number) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/Chat/${chatId}/messages?userId=${userId}`)
-      setPrivateMessages(response.data)
+      const messages = response.data
+      
+      // Store in allPrivateMessages
+      setAllPrivateMessages(prev => ({
+        ...prev,
+        [chatId.toString()]: messages
+      }))
+      
     } catch (err) {
       console.error('Error fetching private messages:', err)
     }
@@ -245,18 +413,12 @@ const Chat = () => {
       })
       
       setMessage('')
-      fetchPrivateMessages(chatId)
+      
     } catch (err) {
       console.error('Error sending private message:', err)
+      alert('Failed to send message. Please try again.')
     }
   }
-
-  // ========== SHARED FUNCTIONS ==========
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [courseMessages, privateMessages])
 
   // Tab switching handler
   const handleTabSwitch = (tab: 'course' | 'private') => {
@@ -273,7 +435,6 @@ const Chat = () => {
     try {
       const date = new Date(timestamp)
       if (isNaN(date.getTime())) {
-        console.warn('Invalid timestamp:', timestamp)
         return 'Invalid date'
       }
       return date.toLocaleTimeString([], { 
@@ -281,7 +442,6 @@ const Chat = () => {
         minute: '2-digit' 
       })
     } catch (error) {
-      console.error('Error formatting timestamp:', timestamp, error)
       return 'Invalid date'
     }
   }
@@ -332,7 +492,7 @@ const Chat = () => {
         {/* Chat List */}
         <div className="p-2">
           {activeTab === 'course' ? (
-            // Course List (Simple Working Version)
+            // Course List
             courses.map((course) => (
               <button
                 key={course.id}
@@ -355,14 +515,18 @@ const Chat = () => {
               </button>
             ))
           ) : (
-            // Private Chat List (Current System)
+            // Private Chat List
             <>
               {privateChats.map((chat) => (
                 <button
                   key={chat.id}
                   onClick={() => {
                     setSelectedPrivateChat(chat)
-                    fetchPrivateMessages(chat.chatId || chat.id)
+                    // Only fetch messages if we don't have any for this chat yet
+                    const chatId = chat.chatId || chat.id
+                    if (!allPrivateMessages[chatId.toString()] || allPrivateMessages[chatId.toString()].length === 0) {
+                      fetchPrivateMessages(chatId)
+                    }
                   }}
                   className={`w-full text-left p-3 rounded-lg mb-1 ${
                     selectedPrivateChat?.id === chat.id
@@ -377,14 +541,7 @@ const Chat = () => {
                       className="w-6 h-6 rounded-full object-cover flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium truncate pr-2">{chat.otherUser.name}</p>
-                        {chat.unreadCount > 0 && (
-                          <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full flex-shrink-0">
-                            {chat.unreadCount}
-                          </span>
-                        )}
-                      </div>
+                      <p className="font-medium truncate pr-2">{chat.otherUser.name}</p>
                       {chat.lastMessage && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                           {chat.lastMessage.isFromMe ? 'You: ' : ''}
@@ -410,7 +567,7 @@ const Chat = () => {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        {/* Course Chat (Simple Working Version) */}
+        {/* Course Chat */}
         {activeTab === 'course' && selectedCourse ? (
           <>
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -501,7 +658,7 @@ const Chat = () => {
             </form>
           </>
         ) : activeTab === 'private' && selectedPrivateChat ? (
-          // Private Chat (Current System)
+          // Private Chat
           <>
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-3">

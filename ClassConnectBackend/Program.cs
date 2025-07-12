@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using ClassConnectBackend.Data;
 using Microsoft.AspNetCore.Identity; // Make sure this is at the top
 using ClassConnectBackend.Models;    // Make sure this is at the top
+using ClassConnectBackend.Hubs; // Add this using directive for SignalR
 
 // web application builder that sets up the application
 var builder = WebApplication.CreateBuilder(args);
@@ -40,13 +41,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173") // Add your React app URLs
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials(); // Important for SignalR
     });
 });
 
-builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>(); // <-- Add this line
+builder.Services.AddSignalR(); // Add SignalR services
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 var app = builder.Build();
 
@@ -64,17 +67,19 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Use routing to map incoming requests to the appropriate controllers
-app.UseHttpsRedirection();
-
-// ✅ Apply CORS here
+// IMPORTANT: Middleware order matters for SignalR
+app.UseRouting();
 app.UseCors("AllowFrontend");
-
-// Use authentication and authorization middleware
 app.UseAuthorization();
 
 // Map controllers to handle incoming requests
 app.MapControllers();
+
+// Map SignalR hub
+app.MapHub<ChatHub>("/chatHub");
+
+// Add debug line to confirm hub is mapped
+Console.WriteLine("SignalR Hub mapped to /chatHub");
 
 // runs the backend application
 app.Run();

@@ -1,8 +1,10 @@
 // this file is for the private chats controller that will be used for users that have connected with each other.
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using ClassConnectBackend.Models;
 using ClassConnectBackend.Data;
+using ClassConnectBackend.Hubs;
 
 namespace ClassConnectBackend.Controllers
 {
@@ -11,10 +13,12 @@ namespace ClassConnectBackend.Controllers
     public class ChatController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public ChatController(AppDbContext db)
+        public ChatController(AppDbContext db, IHubContext<ChatHub> hubContext)
         {
             _db = db;
+            _hubContext = hubContext;
         }
 
         // Get all chats for a user
@@ -39,8 +43,8 @@ namespace ClassConnectBackend.Controllers
                     
                     return new
                     {
-                        Id = c.Id, // Make sure this is the chat ID
-                        ChatId = c.Id, // Also include ChatId for clarity
+                        Id = c.Id,
+                        ChatId = c.Id,
                         OtherUser = new
                         {
                             Id = otherUser.Id,
@@ -50,10 +54,10 @@ namespace ClassConnectBackend.Controllers
                         LastMessage = lastMessage != null ? new
                         {
                             Content = lastMessage.Content,
-                            Timestamp = lastMessage.Timestamp,
+                            SentAt = lastMessage.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                             IsFromMe = lastMessage.SenderId == userId
                         } : null,
-                        UnreadCount = 0 // You can implement this later
+                        UnreadCount = c.Messages.Count(m => m.SenderId != userId && !m.IsRead)
                     };
                 });
 
@@ -138,12 +142,12 @@ namespace ClassConnectBackend.Controllers
                 }
 
                 var messages = chat.Messages
-                    .OrderBy(m => m.Timestamp) // Changed from SentAt to Timestamp
+                    .OrderBy(m => m.Timestamp)
                     .Select(m => new
                     {
                         Id = m.Id,
                         Content = m.Content,
-                        SentAt = m.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"), // Use Timestamp but return as SentAt for frontend compatibility
+                        SentAt = m.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                         IsFromMe = m.SenderId == userId,
                         SenderName = m.Sender.Name ?? "",
                         SenderAvatar = m.Sender.ProfilePictureUrl ?? ""
@@ -170,18 +174,29 @@ namespace ClassConnectBackend.Controllers
             }
         }
 
-        // Send a message
+        // Send a message - NOW WITH SIGNALR SUPPORT
         [HttpPost("{chatId}/messages")]
         public async Task<IActionResult> SendMessage(int chatId, [FromBody] SendMessageDto dto)
         {
             try
             {
+                Console.WriteLine($"Sending private message to chat {chatId} from user {dto.SenderId}");
+
                 var chat = await _db.Chats
+                    .Include(c => c.User1)
+                    .Include(c => c.User2)
                     .FirstOrDefaultAsync(c => c.Id == chatId && (c.User1Id == dto.SenderId || c.User2Id == dto.SenderId));
 
                 if (chat == null)
                 {
                     return NotFound("Chat not found or access denied");
+                }
+
+                // Get the sender user
+                var sender = await _db.Users.FindAsync(dto.SenderId);
+                if (sender == null)
+                {
+                    return BadRequest("Sender not found");
                 }
 
                 var message = new ChatMessage
@@ -190,7 +205,8 @@ namespace ClassConnectBackend.Controllers
                     SenderId = dto.SenderId,
                     Content = dto.Content,
                     Timestamp = DateTime.UtcNow,
-                    IsRead = false
+                    IsRead = false,
+                    Sender = sender
                 };
 
                 _db.ChatMessages.Add(message);
@@ -200,11 +216,35 @@ namespace ClassConnectBackend.Controllers
                 
                 await _db.SaveChangesAsync();
 
-                return Ok(new { messageId = message.Id });
+                // Send real-time message to all users in the private chat group
+                Console.WriteLine($"Sending message to chat_{chatId}");
+                Console.WriteLine($"Message content: {dto.Content}");
+                Console.WriteLine($"Sender ID: {dto.SenderId}");
+                Console.WriteLine($"Broadcasting to group: chat_{chatId}");
+                await _hubContext.Clients.Group($"chat_{chatId}").SendAsync("ReceivePrivateMessage", new
+                {
+                    id = message.Id,
+                    chatId = chatId,
+                    senderId = message.SenderId,
+                    sender = message.Sender.Name ?? message.Sender.Username ?? "Unknown", // Use Name first, then Username
+                    content = message.Content,
+                    timestamp = message.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                    avatar = message.Sender.ProfilePictureUrl ?? ""
+                });
+                Console.WriteLine($"Message broadcasted successfully");
+
+                Console.WriteLine($"Private message saved and broadcast with ID: {message.Id}");
+
+                return Ok(new { 
+                    success = true,
+                    messageId = message.Id,
+                    message = "Message sent successfully"
+                });
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error sending message: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return StatusCode(500, $"Error sending message: {ex.Message}");
             }
         }
