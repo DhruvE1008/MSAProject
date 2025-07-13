@@ -3,8 +3,8 @@
 // It also runs EF Core migrations on startup
 using Microsoft.EntityFrameworkCore;
 using ClassConnectBackend.Data;
-using Microsoft.AspNetCore.Identity; // Make sure this is at the top
-using ClassConnectBackend.Models;    // Make sure this is at the top
+using Microsoft.AspNetCore.Identity;
+using ClassConnectBackend.Models;
 using ClassConnectBackend.Hubs; // Add this using directive for SignalR
 
 // web application builder that sets up the application
@@ -48,7 +48,29 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddSignalR(); // Add SignalR services
+// Add SignalR with better configuration
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+});
+
+// Update your CORS configuration:
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials()
+              .WithExposedHeaders("*")
+              .SetPreflightMaxAge(TimeSpan.FromSeconds(3600));
+    });
+});
+
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 var app = builder.Build();
@@ -75,11 +97,12 @@ app.UseAuthorization();
 // Map controllers to handle incoming requests
 app.MapControllers();
 
-// Map SignalR hub
+// Map SignalR hubs
 app.MapHub<ChatHub>("/chatHub");
+app.MapHub<ConnectionHub>("/connectionHub"); // <-- Add this line
 
 // Add debug line to confirm hub is mapped
-Console.WriteLine("SignalR Hub mapped to /chatHub");
+Console.WriteLine("SignalR Hubs mapped to /chatHub and /connectionHub");
 
 // runs the backend application
 app.Run();

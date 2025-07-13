@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using ClassConnectBackend.Models;
 using ClassConnectBackend.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using ClassConnectBackend.Hubs; // <-- Add this for your ConnectionHub
 
 namespace ClassConnectBackend.Controllers
 {
@@ -10,14 +12,31 @@ namespace ClassConnectBackend.Controllers
     public class CoursesController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly IHubContext<ConnectionHub> _hub; // Inject the hub
 
-        public CoursesController(AppDbContext db) => _db = db;
+        public CoursesController(AppDbContext db, IHubContext<ConnectionHub> hub)
+        {
+            _db = db;
+            _hub = hub;
+        }
 
         [HttpPost]
         public async Task<IActionResult> Create(Course course)
         {
             _db.Courses.Add(course);
             await _db.SaveChangesAsync();
+
+            // Notify all users (or filter as needed)
+            await _hub.Clients.All.SendAsync("CourseCreated", new
+            {
+                course.Id,
+                course.Code,
+                course.Name,
+                course.Department,
+                course.Professor,
+                course.Description
+            });
+
             return CreatedAtAction(nameof(Get), new { id = course.Id }, course);
         }
 
@@ -80,6 +99,18 @@ namespace ClassConnectBackend.Controllers
             course.Description = updated.Description;
 
             await _db.SaveChangesAsync();
+
+            // Notify all users (or filter as needed)
+            await _hub.Clients.All.SendAsync("CourseUpdated", new
+            {
+                course.Id,
+                course.Code,
+                course.Name,
+                course.Department,
+                course.Professor,
+                course.Description
+            });
+
             return NoContent();
         }
 
@@ -91,6 +122,10 @@ namespace ClassConnectBackend.Controllers
 
             _db.Courses.Remove(course);
             await _db.SaveChangesAsync();
+
+            // Notify all users (or filter as needed)
+            await _hub.Clients.All.SendAsync("CourseDeleted", new { courseId = id });
+
             return NoContent();
         }
 
@@ -112,6 +147,14 @@ namespace ClassConnectBackend.Controllers
             user.EnrolledCourses.Remove(course);
 
             await _db.SaveChangesAsync();
+
+            // Notify the user who was unenrolled
+            await _hub.Clients.User(request.UserId.ToString()).SendAsync("UserUnenrolled", new
+            {
+                courseId = course.Id,
+                courseName = course.Name
+            });
+
             return Ok("User unenrolled successfully");
         }
 

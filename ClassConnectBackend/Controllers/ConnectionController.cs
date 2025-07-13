@@ -1,8 +1,10 @@
 // this file is the controller for managing the connections in the web site.
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using ClassConnectBackend.Models;
 using ClassConnectBackend.Data;
+using ClassConnectBackend.Hubs;
 
 namespace ClassConnectBackend.Controllers
 {
@@ -11,10 +13,12 @@ namespace ClassConnectBackend.Controllers
     public class ConnectionController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly IHubContext<ConnectionHub> _connectionHubContext;
 
-        public ConnectionController(AppDbContext db)
+        public ConnectionController(AppDbContext db, IHubContext<ConnectionHub> connectionHubContext)
         {
             _db = db;
+            _connectionHubContext = connectionHubContext;
         }
 
         // Gets all accepted connections for a user
@@ -27,31 +31,28 @@ namespace ClassConnectBackend.Controllers
                     .Where(c => (c.RequesterId == userId || c.ReceiverId == userId) && 
                                c.Status == Models.ConnectionStatus.Accepted)
                     .Include(c => c.Requester)
-                        .ThenInclude(u => u.EnrolledCourses)
                     .Include(c => c.Receiver)
-                        .ThenInclude(u => u.EnrolledCourses)
                     .ToListAsync();
 
-                var result = connections.Select(c =>
+                var result = connections.Select(c => new
                 {
-                    var other = c.RequesterId == userId ? c.Receiver : c.Requester;
-                    return new
-                    {
-                        Id = c.Id,
-                        UserId = other.Id, // The actual user ID for chat creation
-                        Name = other.Name ?? "",
-                        Major = other.Major ?? "",
-                        Year = other.Year ?? "",
-                        Avatar = other.ProfilePictureUrl ?? "",
-                        Courses = other.EnrolledCourses?.Select(course => course.Name).ToList() ?? new List<string>()
-                    };
-                });
+                    Id = c.Id,
+                    UserId = c.RequesterId == userId ? c.ReceiverId : c.RequesterId,
+                    Name = c.RequesterId == userId ? c.Receiver.Name : c.Requester.Name,
+                    Major = c.RequesterId == userId ? c.Receiver.Major : c.Requester.Major,
+                    Year = c.RequesterId == userId ? c.Receiver.Year : c.Requester.Year,
+                    Avatar = c.RequesterId == userId ? c.Receiver.ProfilePictureUrl : c.Requester.ProfilePictureUrl,
+                    Courses = c.RequesterId == userId ? 
+                        c.Receiver.EnrolledCourses.Select(ec => ec.Name).ToList() : 
+                        c.Requester.EnrolledCourses.Select(ec => ec.Name).ToList()
+                }).ToList();
 
+                Console.WriteLine($"📊 Found {result.Count} accepted connections for user {userId}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GetAcceptedConnections: {ex.Message}");
+                Console.WriteLine($"❌ Error fetching accepted connections: {ex.Message}");
                 return StatusCode(500, $"Error fetching connections: {ex.Message}");
             }
         }
@@ -62,26 +63,28 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
-                var requests = await _db.Connections
+                var pendingRequests = await _db.Connections
                     .Where(c => c.ReceiverId == userId && c.Status == Models.ConnectionStatus.Pending)
                     .Include(c => c.Requester)
-                        .ThenInclude(u => u.EnrolledCourses)
+                    .ThenInclude(r => r.EnrolledCourses)
                     .ToListAsync();
 
-                var result = requests.Select(c => new
+                var result = pendingRequests.Select(c => new
                 {
                     Id = c.Id,
                     Name = c.Requester.Name,
                     Major = c.Requester.Major,
                     Year = c.Requester.Year,
                     Avatar = c.Requester.ProfilePictureUrl ?? "",
-                    Course = c.Requester.EnrolledCourses.FirstOrDefault()?.Name ?? c.Requester.Major
-                });
+                    Course = c.Requester.EnrolledCourses.FirstOrDefault()?.Name ?? "No courses"
+                }).ToList();
 
+                Console.WriteLine($"📊 Found {result.Count} pending requests for user {userId}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"❌ Error fetching pending requests: {ex.Message}");
                 return StatusCode(500, $"Error fetching pending requests: {ex.Message}");
             }
         }
@@ -142,6 +145,15 @@ namespace ClassConnectBackend.Controllers
                     return BadRequest("Connection already exists or request already sent");
                 }
 
+                // Get user details for notifications
+                var requester = await _db.Users.FindAsync(request.RequesterId);
+                var receiver = await _db.Users.FindAsync(request.ReceiverId);
+
+                if (requester == null || receiver == null)
+                {
+                    return BadRequest("One or both users not found");
+                }
+
                 var connection = new Connection
                 {
                     RequesterId = request.RequesterId,
@@ -153,10 +165,54 @@ namespace ClassConnectBackend.Controllers
                 _db.Connections.Add(connection);
                 await _db.SaveChangesAsync();
 
+                // Send targeted WebSocket notifications
+                try
+                {
+                    // Notify the SENDER that their request was sent
+                    await _connectionHubContext.Clients.Group($"User_{request.RequesterId}")
+                        .SendAsync("ConnectionRequestSent", new
+                        {
+                            connectionId = connection.Id,
+                            requesterId = request.RequesterId,
+                            receiverId = request.ReceiverId,
+                            receiverName = receiver.Name,
+                            message = $"Connection request sent to {receiver.Name}"
+                        });
+
+                    // Notify the RECEIVER that they have a new request
+                    await _connectionHubContext.Clients.Group($"User_{request.ReceiverId}")
+                        .SendAsync("ConnectionRequestReceived", new
+                        {
+                            connectionId = connection.Id,
+                            requesterId = request.RequesterId,
+                            receiverId = request.ReceiverId,
+                            requesterName = requester.Name,
+                            requesterMajor = requester.Major,
+                            requesterYear = requester.Year,
+                            requesterAvatar = requester.ProfilePictureUrl ?? "",
+                            message = $"New connection request from {requester.Name}"
+                        });
+
+                    // Also send to all users for general updates (like suggestions)
+                    await _connectionHubContext.Clients.All.SendAsync("ConnectionRequestSent", new
+                    {
+                        connectionId = connection.Id,
+                        requesterId = request.RequesterId,
+                        receiverId = request.ReceiverId
+                    });
+
+                    Console.WriteLine($"📬 Connection request sent from {requester.Name} to {receiver.Name}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Error sending WebSocket notification: {ex.Message}");
+                }
+
                 return Ok(new { message = "Connection request sent successfully" });
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"❌ Error sending connection request: {ex.Message}");
                 return StatusCode(500, $"Error sending connection request: {ex.Message}");
             }
         }
@@ -167,17 +223,60 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
-                var connection = await _db.Connections.FindAsync(id);
+                var connection = await _db.Connections
+                    .Include(c => c.Requester)
+                    .Include(c => c.Receiver)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+
                 if (connection == null)
                     return NotFound("Connection request not found");
 
                 connection.Status = Models.ConnectionStatus.Accepted;
                 await _db.SaveChangesAsync();
 
+                // Send targeted WebSocket notifications
+                try
+                {
+                    // Notify the REQUESTER that their request was accepted
+                    await _connectionHubContext.Clients.Group($"User_{connection.RequesterId}")
+                        .SendAsync("ConnectionAccepted", new
+                        {
+                            connectionId = connection.Id,
+                            requesterId = connection.RequesterId,
+                            receiverId = connection.ReceiverId,
+                            message = $"{connection.Receiver.Name} accepted your connection request"
+                        });
+
+                    // Notify the RECEIVER (person who accepted) to update their UI
+                    await _connectionHubContext.Clients.Group($"User_{connection.ReceiverId}")
+                        .SendAsync("ConnectionAccepted", new
+                        {
+                            connectionId = connection.Id,
+                            requesterId = connection.RequesterId,
+                            receiverId = connection.ReceiverId,
+                            message = $"You accepted {connection.Requester.Name}'s connection request"
+                        });
+
+                    // Also send to all users for general updates
+                    await _connectionHubContext.Clients.All.SendAsync("ConnectionAccepted", new
+                    {
+                        connectionId = connection.Id,
+                        requesterId = connection.RequesterId,
+                        receiverId = connection.ReceiverId
+                    });
+
+                    Console.WriteLine($"✅ Connection accepted between {connection.Requester.Name} and {connection.Receiver.Name}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Error sending WebSocket notification: {ex.Message}");
+                }
+
                 return Ok(new { message = "Connection request accepted successfully" });
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"❌ Error accepting connection: {ex.Message}");
                 return StatusCode(500, $"Error accepting connection request: {ex.Message}");
             }
         }
@@ -188,19 +287,63 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
-                var connection = await _db.Connections.FindAsync(id);
+                var connection = await _db.Connections
+                    .Include(c => c.Requester)
+                    .Include(c => c.Receiver)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+
                 if (connection == null)
                     return NotFound("Connection request not found");
 
-                // Instead of just marking as rejected, we remove the connection entirely
-                // This allows the user to send a new request in the future
+                var requesterId = connection.RequesterId;
+                var receiverId = connection.ReceiverId;
+
                 _db.Connections.Remove(connection);
                 await _db.SaveChangesAsync();
+
+                // Send targeted WebSocket notifications
+                try
+                {
+                    // Notify the REQUESTER that their request was rejected
+                    await _connectionHubContext.Clients.Group($"User_{requesterId}")
+                        .SendAsync("ConnectionRejected", new
+                        {
+                            connectionId = id,
+                            requesterId = requesterId,
+                            receiverId = receiverId,
+                            message = $"{connection.Receiver.Name} declined your connection request"
+                        });
+
+                    // Notify the RECEIVER (person who rejected) to update their UI
+                    await _connectionHubContext.Clients.Group($"User_{receiverId}")
+                        .SendAsync("ConnectionRejected", new
+                        {
+                            connectionId = id,
+                            requesterId = requesterId,
+                            receiverId = receiverId,
+                            message = $"You declined {connection.Requester.Name}'s connection request"
+                        });
+
+                    // Also send to all users for general updates
+                    await _connectionHubContext.Clients.All.SendAsync("ConnectionRejected", new
+                    {
+                        connectionId = id,
+                        requesterId = requesterId,
+                        receiverId = receiverId
+                    });
+
+                    Console.WriteLine($"❌ Connection rejected between {connection.Requester.Name} and {connection.Receiver.Name}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Error sending WebSocket notification: {ex.Message}");
+                }
 
                 return Ok(new { message = "Connection request rejected successfully" });
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"❌ Error rejecting connection: {ex.Message}");
                 return StatusCode(500, $"Error rejecting connection request: {ex.Message}");
             }
         }
@@ -212,16 +355,20 @@ namespace ClassConnectBackend.Controllers
             try
             {
                 var connection = await _db.Connections
+                    .Include(c => c.Requester)
+                    .Include(c => c.Receiver)
                     .FirstOrDefaultAsync(c => c.Id == connectionId && 
-                                             (c.RequesterId == userId || c.ReceiverId == userId));
+                                             (c.RequesterId == userId || c.ReceiverId == userId) &&
+                                             c.Status == Models.ConnectionStatus.Accepted);
 
                 if (connection == null)
                 {
-                    return NotFound("Connection not found");
+                    return NotFound("Connection not found or you don't have permission to delete it");
                 }
 
                 // Get the other user's ID
                 var otherUserId = connection.RequesterId == userId ? connection.ReceiverId : connection.RequesterId;
+                var currentUserName = connection.RequesterId == userId ? connection.Requester.Name : connection.Receiver.Name;
                 
                 // Find and delete associated chats
                 var chatsToDelete = await _db.Chats
@@ -240,12 +387,29 @@ namespace ClassConnectBackend.Controllers
                 
                 await _db.SaveChangesAsync();
 
-                Console.WriteLine($"Successfully removed connection and {chatsToDelete.Count} associated chats");
+                // Send WebSocket notifications to both users
+                try
+                {
+                    await _connectionHubContext.Clients.All.SendAsync("ConnectionRemoved", new
+                    {
+                        connectionId = connectionId,
+                        removedByUserId = userId,
+                        affectedUserId = otherUserId,
+                        message = $"{currentUserName} removed the connection"
+                    });
+
+                    Console.WriteLine($"🗑️ Connection removed: {connection.Requester.Name} <-> {connection.Receiver.Name}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Error sending WebSocket notification: {ex.Message}");
+                }
+
                 return Ok(new { message = "Connection and associated chats removed successfully" });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error removing connection: {ex.Message}");
+                Console.WriteLine($"❌ Error removing connection: {ex.Message}");
                 return StatusCode(500, $"Error removing connection: {ex.Message}");
             }
         }

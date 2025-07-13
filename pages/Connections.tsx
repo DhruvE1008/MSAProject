@@ -1,5 +1,6 @@
 // src/components/Connections.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import * as signalR from '@microsoft/signalr'
 import axios from 'axios'
 import {
   SearchIcon,
@@ -14,7 +15,7 @@ const API_BASE_URL = 'http://localhost:5082/api'
 
 interface Connection {
   id: number
-  userId: number  // This should match the "UserId" from the backend
+  userId: number
   name: string
   major: string
   year: string
@@ -51,20 +52,16 @@ const Connections = () => {
   const [suggestedConnections, setSuggestedConnections] = useState<Suggestion[]>([])
   const [userCourses, setUserCourses] = useState<string[]>([])
   const [allCourses, setAllCourses] = useState<string[]>(['All Courses'])
+  const [outgoingRequestIds, setOutgoingRequestIds] = useState<Set<number>>(new Set())
+
+  const connectionRef = useRef<signalR.HubConnection | null>(null)
 
   const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
   const userId = currentUser.id
 
-  useEffect(() => {
+  // --- Data fetching functions ---
+  const fetchUserCourses = useCallback(async () => {
     if (!userId) return
-    fetchUserCourses()
-    fetchConnections()
-    fetchRequests()
-    fetchSuggestions()
-  }, [userId])
-
-  // is used to filter and get users who take the same courses.
-  const fetchUserCourses = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/courses/user/${userId}`)
       const courseNames = res.data.map((course: any) => course.name || course.Name)
@@ -73,89 +70,229 @@ const Connections = () => {
     } catch (err) {
       console.error('Error fetching user courses:', err)
     }
-  }
+  }, [userId])
 
-  // to get existing connections.
-  const fetchConnections = async () => {
+  const fetchConnections = useCallback(async () => {
+    if (!userId) return
     try {
+      console.log('🔄 Fetching connections...')
       const res = await axios.get(`${API_BASE_URL}/Connection/accepted/${userId}`)
-      setConnections(res.data)
+      setConnections(res.data || [])
+      console.log(`✅ Loaded ${res.data?.length || 0} connections`)
     } catch (err) {
-      console.error('Error fetching connections:', err)
+      console.error('❌ Error fetching connections:', err)
+      setConnections([]) // Set empty array instead of leaving undefined
     }
-  }
+  }, [userId])
 
-  // to get connection requests.
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
+    if (!userId) return
     try {
+      console.log('🔄 Fetching requests for user:', userId)
       const res = await axios.get(`${API_BASE_URL}/Connection/pending/${userId}`)
-      setPendingRequests(res.data)
+      console.log('📥 Received requests data:', res.data)
+      setPendingRequests(res.data || [])
+      console.log(`✅ Loaded ${res.data?.length || 0} pending requests`)
     } catch (err) {
-      console.error('Error fetching requests:', err)
+      console.error('❌ Error fetching requests:', err)
+      setPendingRequests([])
     }
-  }
+  }, [userId])
 
-  // gets suggestions
-  const fetchSuggestions = async () => {
+  const fetchSuggestions = useCallback(async () => {
+    if (!userId) return
     try {
+      console.log('🔄 Fetching suggestions...')
       const res = await axios.get(`${API_BASE_URL}/Connection/suggestions/${userId}`)
-      setSuggestedConnections(res.data)
+      setSuggestedConnections(res.data || [])
+      console.log(`✅ Loaded ${res.data?.length || 0} suggestions`)
     } catch (err) {
-      console.error('Error fetching suggestions:', err)
+      console.error('❌ Error fetching suggestions:', err)
+      setSuggestedConnections([])
     }
-  }
+  }, [userId])
 
-  // handles accepting requests.
+  const fetchOutgoingRequests = useCallback(async () => {
+    if (!userId) return
+    try {
+      console.log('🔄 Fetching outgoing requests...')
+      const res = await axios.get(`${API_BASE_URL}/Connection/outgoing/${userId}`)
+      setOutgoingRequestIds(new Set(res.data.map((req: any) => req.ReceiverId)))
+      console.log(`✅ Loaded ${res.data?.length || 0} outgoing requests`)
+    } catch (err: any) {
+      console.error('❌ Error fetching outgoing requests:', err)
+      setOutgoingRequestIds(new Set())
+    }
+  }, [userId])
+
+  // --- WebSocket setup ---
+  useEffect(() => {
+    if (!userId) return
+
+    let isConnected = false
+    let connectionInstance: signalR.HubConnection | null = null
+
+    const setupConnection = async () => {
+      // Always fetch data first
+      console.log('🔄 Fetching initial data...')
+      try {
+        await Promise.all([
+          fetchUserCourses(),
+          fetchConnections(),
+          fetchRequests(),
+          fetchSuggestions(),
+          fetchOutgoingRequests()
+        ])
+        console.log('✅ Initial data loaded successfully')
+      } catch (err) {
+        console.error('❌ Error loading initial data:', err)
+      }
+
+      // Setup SignalR
+      const connection = new signalR.HubConnectionBuilder()
+        .withUrl('http://localhost:5082/connectionHub')
+        .withAutomaticReconnect([0, 2000, 10000, 30000])
+        .build()
+
+      connectionRef.current = connection
+      connectionInstance = connection
+
+      // Handle connection request received (for requests page)
+      connection.on('ConnectionRequestReceived', (data) => {
+        console.log('📬 Connection request received:', data)
+        fetchRequests() // This should update the requests page immediately
+        fetchSuggestions()
+      })
+
+      // Handle connection request sent (for discover page)
+      connection.on('ConnectionRequestSent', (data) => {
+        console.log('📤 Connection request sent:', data)
+        fetchOutgoingRequests()
+        fetchSuggestions()
+      })
+
+      // Handle connection accepted (for all pages)
+      connection.on('ConnectionAccepted', (data) => {
+        console.log('✅ Connection accepted:', data)
+        fetchConnections()
+        fetchRequests()
+        fetchOutgoingRequests()
+        fetchSuggestions()
+      })
+
+      // Handle connection rejected (for all pages)
+      connection.on('ConnectionRejected', (data) => {
+        console.log('❌ Connection rejected:', data)
+        fetchRequests()
+        fetchOutgoingRequests()
+        fetchSuggestions()
+      })
+
+      // Handle connection removed (for connections page)
+      connection.on('ConnectionRemoved', (data) => {
+        console.log('🗑️ Connection removed:', data)
+        fetchConnections()
+        fetchSuggestions()
+      })
+
+      connection.onreconnecting(() => {
+        console.log('🔄 SignalR reconnecting...')
+        isConnected = false
+      })
+
+      connection.onreconnected(() => {
+        console.log('🔄 SignalR reconnected!')
+        isConnected = true
+        // Refresh all data after reconnection
+        fetchConnections()
+        fetchRequests()
+        fetchSuggestions()
+        fetchOutgoingRequests()
+      })
+
+      connection.onclose(() => {
+        console.log('❌ SignalR connection closed')
+        isConnected = false
+      })
+
+      try {
+        await connection.start()
+        console.log('✅ SignalR Connected')
+        isConnected = true
+        
+        // Join user group for targeted notifications
+        await connection.invoke('JoinUserGroup', userId.toString())
+        console.log(`✅ Joined user group: User_${userId}`)
+      } catch (err) {
+        console.error('❌ SignalR connection error:', err)
+        isConnected = false
+      }
+    }
+
+    setupConnection()
+
+    return () => {
+      if (connectionInstance) {
+        if (isConnected) {
+          connectionInstance.invoke('LeaveUserGroup', userId.toString()).catch(console.error)
+        }
+        connectionInstance.stop().catch(console.error)
+        connectionRef.current = null
+      }
+    }
+  }, [userId]) // Only depend on userId to avoid infinite loops
+
+  // --- Action handlers ---
   const handleAcceptRequest = async (id: number) => {
     try {
       await axios.post(`${API_BASE_URL}/Connection/requests/${id}/accept`)
-      alert('Connection request accepted!')
-      fetchRequests()
-      fetchConnections()
-      fetchSuggestions() // Refresh suggestions to remove the newly connected user
+      // UI will update via SignalR event
     } catch (err) {
       console.error('Error accepting request:', err)
       alert('Failed to accept connection request')
     }
   }
 
-  // handles rejecting a request.
   const handleRejectRequest = async (id: number) => {
     try {
       await axios.post(`${API_BASE_URL}/Connection/requests/${id}/reject`)
-      alert('Connection request rejected!')
-      fetchRequests()
-      fetchSuggestions() // Refresh suggestions to show the user again
+      // UI will update via SignalR event
     } catch (err) {
       console.error('Error rejecting request:', err)
       alert('Failed to reject connection request')
     }
   }
 
-  // handles when someone removes another user as a connection
-  const handleRemoveConnection = async (id: number) => {
+  const handleRemoveConnection = async (connectionId: number) => {
     try {
-      await axios.delete(`${API_BASE_URL}/Connection/${id}`)
-      alert('Connection removed successfully!')
-      fetchConnections()
-      fetchSuggestions() // Refresh suggestions to show the user again
-    } catch (err) {
-      console.error('Error removing connection:', err)
-      alert('Failed to remove connection')
+      console.log(`🗑️ Removing connection ${connectionId}...`)
+      await axios.delete(`${API_BASE_URL}/Connection/${connectionId}?userId=${userId}`)
+      console.log(`✅ Connection ${connectionId} removed successfully`)
+      // UI will update via SignalR event
+    } catch (err: any) {
+      console.error('❌ Error removing connection:', err)
+      if (err.response?.status === 404) {
+        alert('Connection not found or already removed')
+      } else {
+        alert('Failed to remove connection')
+      }
     }
   }
 
-  // handle when a connect happens
   const handleConnect = async (receiverId: number) => {
+    setOutgoingRequestIds(prev => new Set(prev).add(receiverId)) // Optimistic update
     try {
       await axios.post(`${API_BASE_URL}/Connection/request`, {
         requesterId: userId,
         receiverId,
       })
-      alert('Connection request sent successfully!')
-      fetchSuggestions()
-      fetchRequests()
+      // UI will update via SignalR event
     } catch (err: any) {
+      setOutgoingRequestIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(receiverId)
+        return newSet
+      })
       console.error('Error sending connection request:', err)
       if (err.response?.data?.includes('already exists')) {
         alert('Connection already exists or request already sent')
@@ -165,20 +302,18 @@ const Connections = () => {
     }
   }
 
-  // filters the connections when you are looking for an existing connection
+  // --- Filtering ---
   const filterConnections = (list: (Connection | Suggestion)[]) => {
     return list.filter((conn) => {
-      const matchesSearch = conn.name.toLowerCase().includes(searchTerm.toLowerCase())
-      
-      const matchesCourse = courseFilter === 'All Courses' || 
+      const matchesSearch = conn.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesCourse = courseFilter === 'All Courses' ||
         (conn.courses && conn.courses.includes(courseFilter))
-      
       return matchesSearch && matchesCourse
     })
   }
 
-  const filteredConnections = filterConnections(connections)
-  const filteredSuggestions = filterConnections(suggestedConnections)
+  const filteredConnections = filterConnections(connections) as Connection[]
+  const filteredSuggestions = filterConnections(suggestedConnections) as Suggestion[]
   const filteredRequests = pendingRequests.filter((req) =>
     req.name?.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -193,7 +328,7 @@ const Connections = () => {
           {['connections', 'requests', 'discover'].map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab as any)}
+              onClick={() => setActiveTab(tab as 'connections' | 'requests' | 'discover')}
               className={`py-2 px-4 transition-colors duration-200 ${
                 activeTab === tab
                   ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
@@ -252,46 +387,38 @@ const Connections = () => {
 
       {/* Content */}
       {activeTab === 'connections' && (
-        <ConnectionList connections={filteredConnections as Connection[]} onRemove={handleRemoveConnection} />
+        <ConnectionList connections={filteredConnections} onRemove={handleRemoveConnection} />
       )}
       {activeTab === 'requests' && (
         <RequestList requests={filteredRequests} onAccept={handleAcceptRequest} onReject={handleRejectRequest} />
       )}
       {activeTab === 'discover' && (
-        <SuggestionList suggestions={filteredSuggestions as Suggestion[]} onConnect={handleConnect} />
+        <SuggestionList suggestions={filteredSuggestions} onConnect={handleConnect} outgoingRequestIds={outgoingRequestIds} />
       )}
     </div>
   )
 }
 
 const ConnectionList = ({ connections, onRemove }: { connections: Connection[]; onRemove: (id: number) => void }) => {
-  // for redirecting users to a private chat of the user and their connection.
   const handleStartChat = async (connectionId: number, otherUserId: number) => {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
     try {
-      console.log('Starting chat with user ID:', otherUserId, 'Current user:', currentUser.id);
-      
       const response = await axios.post(`${API_BASE_URL}/Chat/create`, {
         user1Id: currentUser.id,
         user2Id: otherUserId
       })
-      
       const chatId = response.data.chatId
-      console.log('Created chat with ID:', chatId);
-      
-      // Add a small delay to ensure the chat is created
       setTimeout(() => {
         window.location.href = `/chat?type=private&chatId=${chatId}`
       }, 100)
     } catch (err: any) {
       console.error('Error starting chat:', err)
-      console.error('Error response:', err.response?.data)
       alert(`Failed to start chat: ${err.response?.data || err.message}`)
     }
   }
 
   if (!connections.length) return <EmptyState message="No connections found." />
-  
+
   return (
     <ul className="space-y-4">
       {connections.map((conn) => (
@@ -301,20 +428,16 @@ const ConnectionList = ({ connections, onRemove }: { connections: Connection[]; 
             <div>
               <div className="font-semibold text-gray-900 dark:text-gray-100">{conn.name}</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">{conn.major} • {conn.year}</div>
-              <div className="text-xs text-gray-400 dark:text-gray-500">{conn.courses.join(', ')}</div>
+              <div className="text-xs text-gray-400 dark:text-gray-500">{conn.courses?.join(', ')}</div>
             </div>
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => {
-                console.log('Connection object:', conn);
-                console.log('UserId:', conn.userId);
-                
                 if (conn.userId) {
                   handleStartChat(conn.id, conn.userId)
                 } else {
-                  console.error('UserId is missing from connection:', conn);
-                  alert('Cannot start chat: user ID is missing.');
+                  alert('Cannot start chat: user ID is missing.')
                 }
               }}
               className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"
@@ -336,7 +459,7 @@ const ConnectionList = ({ connections, onRemove }: { connections: Connection[]; 
 
 const RequestList = ({ requests, onAccept, onReject }: { requests: Request[]; onAccept: (id: number) => void; onReject: (id: number) => void }) => {
   if (!requests.length) return <EmptyState message="No pending requests." />
-  
+
   return (
     <ul className="space-y-4">
       {requests.map((req) => (
@@ -369,9 +492,9 @@ const RequestList = ({ requests, onAccept, onReject }: { requests: Request[]; on
   )
 }
 
-const SuggestionList = ({ suggestions, onConnect }: { suggestions: Suggestion[]; onConnect: (id: number) => void }) => {
+const SuggestionList = ({ suggestions, onConnect, outgoingRequestIds }: { suggestions: Suggestion[]; onConnect: (id: number) => void; outgoingRequestIds: Set<number> }) => {
   if (!suggestions.length) return <EmptyState message="No suggestions found." />
-  
+
   return (
     <ul className="space-y-4">
       {suggestions.map((sugg) => (
@@ -381,16 +504,25 @@ const SuggestionList = ({ suggestions, onConnect }: { suggestions: Suggestion[];
             <div>
               <div className="font-semibold text-gray-900 dark:text-gray-100">{sugg.name}</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">{sugg.major} • {sugg.year}</div>
-              <div className="text-xs text-gray-400 dark:text-gray-500">{sugg.courses.join(', ')}</div>
+              <div className="text-xs text-gray-400 dark:text-gray-500">{sugg.courses?.join(', ')}</div>
               <div className="text-xs text-blue-500 dark:text-blue-400">{sugg.mutualConnections} mutual connections</div>
             </div>
           </div>
-          <button
-            onClick={() => onConnect(sugg.id)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"
-          >
-            <UserPlusIcon size={16} /> Connect
-          </button>
+          {outgoingRequestIds.has(sugg.id) ? (
+            <button
+              disabled
+              className="bg-yellow-500 text-white px-3 py-1 rounded flex items-center gap-1 cursor-not-allowed"
+            >
+              Pending
+            </button>
+          ) : (
+            <button
+              onClick={() => onConnect(sugg.id)}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"
+            >
+              <UserPlusIcon size={16} /> Connect
+            </button>
+          )}
         </li>
       ))}
     </ul>

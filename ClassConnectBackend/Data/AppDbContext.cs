@@ -5,19 +5,18 @@ using ClassConnectBackend.Models;
 
 namespace ClassConnectBackend.Data
 {
-    // appdbcontext is the main class that represents the database context
-    // It inherits from DbContext and defines the DbSets for each model
-    // This is where you configure the database connection and relationships between entities
+    // Main database context for the application
     public class AppDbContext : DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) {}
 
+        // DbSets for all main entities
         public DbSet<User> Users => Set<User>();
         public DbSet<Course> Courses => Set<Course>();
         public DbSet<Message> Messages => Set<Message>();
-        public DbSet<Connection> Connections { get; set; }
-        public DbSet<Chat> Chats { get; set; } // Add this
-        public DbSet<ChatMessage> ChatMessages { get; set; } // Add this
+        public DbSet<Connection> Connections => Set<Connection>();
+        public DbSet<Chat> Chats => Set<Chat>();
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -25,7 +24,8 @@ namespace ClassConnectBackend.Data
             modelBuilder.Entity<User>()
                 .HasMany(u => u.EnrolledCourses)
                 .WithMany(c => c.Members);
-            
+
+            // Connection relationships
             modelBuilder.Entity<Connection>()
                 .HasOne(c => c.Requester)
                 .WithMany()
@@ -51,6 +51,7 @@ namespace ClassConnectBackend.Data
                 .HasForeignKey(c => c.User2Id)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // ChatMessage relationships
             modelBuilder.Entity<ChatMessage>()
                 .HasOne(cm => cm.Chat)
                 .WithMany(c => c.Messages)
