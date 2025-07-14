@@ -52,7 +52,7 @@ const Home = () => {
         id: chat.id,
         courseName: chat.courseName,
         lastMessage: chat.lastMessage,
-        lastMessageSender: chat.lastMessageSender,
+        lastMessageSender: chat.lastMessageSender, // This will now be username
         lastMessageTime: chat.lastMessageTime ? formatTimeAgo(chat.lastMessageTime) : '',
         participantCount: chat.participantCount
       }))
@@ -68,36 +68,22 @@ const Home = () => {
   // Fetch recent private chats
   const fetchPrivateChats = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/Chat/user/${userId}`)
-      const chats = res.data
+      console.log('🔄 Fetching recent private chats...')
+      const res = await axios.get(`${API_BASE_URL}/Dashboard/recent-private-chats/${userId}`)
+      
+      const privateChatsData = res.data.map((chat: any) => ({
+        id: chat.id,
+        otherUserName: chat.otherUserName,
+        otherUserAvatar: chat.otherUserAvatar,
+        lastMessage: chat.lastMessage,
+        lastMessageTime: chat.lastMessageTime ? formatTimeAgo(chat.lastMessageTime) : '',
+        isRead: chat.isRead
+      }))
 
-      const privateChatsData: PrivateChat[] = await Promise.all(
-        chats.slice(0, 3).map(async (chat: any) => {
-          try {
-            const messagesRes = await axios.get(`${API_BASE_URL}/Chat/${chat.id}/messages`)
-            const messages = messagesRes.data
-
-            const otherUser = chat.user1Id === userId ? chat.user2 : chat.user1
-            const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null
-
-            return {
-              id: chat.id,
-              otherUserName: otherUser.name,
-              otherUserAvatar: otherUser.profilePictureUrl || '/default-avatar.png',
-              lastMessage: lastMessage ? lastMessage.content : 'No messages yet',
-              lastMessageTime: lastMessage ? formatTimeAgo(lastMessage.createdAt) : '',
-              isRead: true // You can implement read status later
-            }
-          } catch (err) {
-            console.error(`Error fetching messages for chat ${chat.id}:`, err)
-            return null
-          }
-        })
-      )
-
-      setPrivateChats(privateChatsData.filter(Boolean))
+      setPrivateChats(privateChatsData)
+      console.log(`✅ Loaded ${privateChatsData.length} recent private chats`)
     } catch (err) {
-      console.error('Error fetching private chats:', err)
+      console.error('❌ Error fetching recent private chats:', err)
       setPrivateChats([])
     }
   }, [userId])
