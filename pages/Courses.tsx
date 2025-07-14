@@ -7,6 +7,8 @@ import {
   UsersIcon,
   MessageCircleIcon,
 } from 'lucide-react'
+import Toast from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 interface Course {
   id: number;
@@ -16,7 +18,7 @@ interface Course {
   professor: string;
   description: string;
   studentCount: number;
-  studentIds?: number[]; // ✅ Optional field to simulate enrollment
+  studentIds?: number[];
 }
 
 const departments = ['All', 'Computer Science', 'Mathematics', 'Physics', 'Chemistry', 'Biology']
@@ -29,10 +31,7 @@ const Courses = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('All')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([])
-    // New state: track which course is currently being edited
   const [editingCourseId, setEditingCourseId] = useState<number | null>(null)
-    // Store edit form data
-    // the number const is used for the course ID and the partial type allows us to have optional fields
   const [editCourseData, setEditCourseData] = useState<Partial<Course>>({})
   const [newCourse, setNewCourse] = useState({
     code: '',
@@ -42,35 +41,37 @@ const Courses = () => {
     description: '',
   })
 
-useEffect(() => {
-  // Fetch all courses
-  axios.get<Course[]>('http://localhost:5082/api/courses')
-    .then(res => setCourses(res.data))
-    .catch(err => console.error("Failed to fetch courses", err))
+  // Use toast hook
+  const { toasts, showSuccess, showError, hideToast } = useToast()
 
-  // Fetch enrolled courses for the user
-  axios.get<Course[]>(`http://localhost:5082/api/courses/user/${userId}`)
-    .then(res => setEnrolledCourses(res.data))
-    .catch(err => console.error("Failed to fetch user's enrolled courses", err))
-}, [userId])
+  useEffect(() => {
+    // Fetch all courses
+    axios.get<Course[]>('http://localhost:5082/api/courses')
+      .then(res => setCourses(res.data))
+      .catch(err => console.error("Failed to fetch courses", err))
 
+    // Fetch enrolled courses for the user
+    axios.get<Course[]>(`http://localhost:5082/api/courses/user/${userId}`)
+      .then(res => setEnrolledCourses(res.data))
+      .catch(err => console.error("Failed to fetch user's enrolled courses", err))
+  }, [userId])
 
   const handleRemoveCourse = (courseId: number) => {
     axios.delete(`http://localhost:5082/api/courses/${courseId}`)
       .then(() => {
-        alert('Course removed successfully!')
+        showSuccess('Course removed successfully!')
         setCourses(prev => prev.filter(course => course.id !== courseId))
       })
       .catch((error) => {
         console.error('Delete error:', error.response?.data || error.message)
-        alert('Failed to remove course')
+        showError('Failed to remove course')
       })
   }
 
   const handleCreateCourse = () => {
     axios.post('http://localhost:5082/api/courses', newCourse)
       .then(res => {
-        alert('Course created successfully!')
+        showSuccess('Course created successfully!')
         setCourses(prev => [...prev, res.data])
         setShowCreateForm(false)
         setNewCourse({
@@ -81,22 +82,19 @@ useEffect(() => {
           description: '',
         })
       })
-      .catch(() => alert('Failed to create course'))
+      .catch(() => showError('Failed to create course'))
   }
 
-    // New: handle edit button click - open edit form and load data
   const handleEditClick = (course: Course) => {
     setEditingCourseId(course.id)
     setEditCourseData(course)
   }
 
-    // New: handle cancel edit
   const handleCancelEdit = () => {
     setEditingCourseId(null)
     setEditCourseData({})
   }
 
-    // New: handle changes in edit form inputs
   const handleEditChange = (field: keyof Course, value: string) => {
     setEditCourseData(prev => ({
       ...prev,
@@ -104,7 +102,6 @@ useEffect(() => {
     }))
   }
 
-    // New: send PUT request to update the course
   const handleSaveEdit = async () => {
     if (!editingCourseId) return
 
@@ -114,14 +111,14 @@ useEffect(() => {
         id: editingCourseId,
       }
       await axios.put(`http://localhost:5082/api/courses/${editingCourseId}`, updatedCourse)
-      alert('Course updated successfully!')
+      showSuccess('Course updated successfully!')
       setCourses(prev =>
         prev.map(c => (c.id === editingCourseId ? (updatedCourse as Course) : c))
       )
       setEditingCourseId(null)
       setEditCourseData({})
     } catch (error) {
-      alert('Failed to update course')
+      showError('Failed to update course')
       console.error(error)
     }
   }
@@ -251,6 +248,18 @@ useEffect(() => {
 
   return (
     <div className="space-y-6 bg-white dark:bg-gray-900 min-h-screen p-6 text-gray-900 dark:text-white">
+      {/* Toast Container */}
+      <div className="fixed top-0 right-0 z-50 space-y-2 p-4">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => hideToast(toast.id)}
+          />
+        ))}
+      </div>
+
       <h1 className="text-2xl font-bold">Browse Courses</h1>
 
       {/* 🔍 Filter Section */}

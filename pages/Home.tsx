@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpenIcon, UsersIcon, MessageCircleIcon, CheckIcon, XIcon } from 'lucide-react'
 import axios from 'axios'
+import { useToast } from '../hooks/useToast'
 
 const API_BASE_URL = 'http://localhost:5082/api'
 
@@ -37,6 +38,7 @@ const Home = () => {
   const [privateChats, setPrivateChats] = useState<PrivateChat[]>([])
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const { toasts, showSuccess, showError, hideToast } = useToast()
 
   const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
   const userId = currentUser.id
@@ -105,9 +107,10 @@ const Home = () => {
       await axios.post(`${API_BASE_URL}/Connection/requests/${requestId}/accept`)
       // Remove the accepted request from the list
       setConnectionRequests(prev => prev.filter(req => req.id !== requestId))
+      showSuccess('Connection request accepted!')
     } catch (err) {
       console.error('Error accepting connection request:', err)
-      alert('Failed to accept connection request')
+      showError('Failed to accept connection request')
     }
   }
 
@@ -117,9 +120,10 @@ const Home = () => {
       await axios.post(`${API_BASE_URL}/Connection/requests/${requestId}/reject`)
       // Remove the rejected request from the list
       setConnectionRequests(prev => prev.filter(req => req.id !== requestId))
+      showSuccess('Connection request declined')
     } catch (err) {
       console.error('Error rejecting connection request:', err)
-      alert('Failed to reject connection request')
+      showError('Failed to reject connection request')
     }
   }
 

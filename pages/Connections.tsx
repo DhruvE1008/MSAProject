@@ -10,6 +10,8 @@ import {
   XIcon,
   MessageCircle,
 } from 'lucide-react'
+import Toast from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 const API_BASE_URL = 'http://localhost:5082/api'
 
@@ -59,6 +61,9 @@ const Connections = () => {
   const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
   const userId = currentUser.id
 
+  // Use toast hook
+  const { toasts, showSuccess, showError, hideToast } = useToast()
+
   // --- Data fetching functions ---
   const fetchUserCourses = useCallback(async () => {
     if (!userId) return
@@ -81,7 +86,7 @@ const Connections = () => {
       console.log(`✅ Loaded ${res.data?.length || 0} connections`)
     } catch (err) {
       console.error('❌ Error fetching connections:', err)
-      setConnections([]) // Set empty array instead of leaving undefined
+      setConnections([])
     }
   }, [userId])
 
@@ -245,36 +250,42 @@ const Connections = () => {
   // --- Action handlers ---
   const handleAcceptRequest = async (id: number) => {
     try {
+      const request = pendingRequests.find(req => req.id === id)
       await axios.post(`${API_BASE_URL}/Connection/requests/${id}/accept`)
+      showSuccess(`Connection request from ${request?.name || 'user'} accepted!`)
       // UI will update via SignalR event
     } catch (err) {
       console.error('Error accepting request:', err)
-      alert('Failed to accept connection request')
+      showError('Failed to accept connection request')
     }
   }
 
   const handleRejectRequest = async (id: number) => {
     try {
+      const request = pendingRequests.find(req => req.id === id)
       await axios.post(`${API_BASE_URL}/Connection/requests/${id}/reject`)
+      showSuccess(`Connection request from ${request?.name || 'user'} declined`)
       // UI will update via SignalR event
     } catch (err) {
       console.error('Error rejecting request:', err)
-      alert('Failed to reject connection request')
+      showError('Failed to reject connection request')
     }
   }
 
   const handleRemoveConnection = async (connectionId: number) => {
     try {
       console.log(`🗑️ Removing connection ${connectionId}...`)
+      const connection = connections.find(conn => conn.id === connectionId)
       await axios.delete(`${API_BASE_URL}/Connection/${connectionId}?userId=${userId}`)
       console.log(`✅ Connection ${connectionId} removed successfully`)
+      showSuccess(`Connection with ${connection?.name || 'user'} removed`)
       // UI will update via SignalR event
     } catch (err: any) {
       console.error('❌ Error removing connection:', err)
       if (err.response?.status === 404) {
-        alert('Connection not found or already removed')
+        showError('Connection not found or already removed')
       } else {
-        alert('Failed to remove connection')
+        showError('Failed to remove connection')
       }
     }
   }
@@ -282,10 +293,12 @@ const Connections = () => {
   const handleConnect = async (receiverId: number) => {
     setOutgoingRequestIds(prev => new Set(prev).add(receiverId)) // Optimistic update
     try {
+      const suggestion = suggestedConnections.find(sugg => sugg.id === receiverId)
       await axios.post(`${API_BASE_URL}/Connection/request`, {
         requesterId: userId,
         receiverId,
       })
+      showSuccess(`Connection request sent to ${suggestion?.name || 'user'}!`)
       // UI will update via SignalR event
     } catch (err: any) {
       setOutgoingRequestIds(prev => {
@@ -295,9 +308,9 @@ const Connections = () => {
       })
       console.error('Error sending connection request:', err)
       if (err.response?.data?.includes('already exists')) {
-        alert('Connection already exists or request already sent')
+        showError('Connection already exists or request already sent')
       } else {
-        alert('Failed to send connection request')
+        showError('Failed to send connection request')
       }
     }
   }
@@ -320,6 +333,18 @@ const Connections = () => {
 
   return (
     <div className="space-y-6">
+      {/* Toast Container */}
+      <div className="fixed top-0 right-0 z-50 space-y-2 p-4">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => hideToast(toast.id)}
+          />
+        ))}
+      </div>
+
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Connections</h1>
 
       {/* Tabs */}
@@ -387,7 +412,7 @@ const Connections = () => {
 
       {/* Content */}
       {activeTab === 'connections' && (
-        <ConnectionList connections={filteredConnections} onRemove={handleRemoveConnection} />
+        <ConnectionList connections={filteredConnections} onRemove={handleRemoveConnection} showError={showError} />
       )}
       {activeTab === 'requests' && (
         <RequestList requests={filteredRequests} onAccept={handleAcceptRequest} onReject={handleRejectRequest} />
@@ -399,7 +424,7 @@ const Connections = () => {
   )
 }
 
-const ConnectionList = ({ connections, onRemove }: { connections: Connection[]; onRemove: (id: number) => void }) => {
+const ConnectionList = ({ connections, onRemove, showError }: { connections: Connection[]; onRemove: (id: number) => void; showError: (message: string) => void }) => {
   const handleStartChat = async (connectionId: number, otherUserId: number) => {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
     try {
@@ -413,7 +438,7 @@ const ConnectionList = ({ connections, onRemove }: { connections: Connection[]; 
       }, 100)
     } catch (err: any) {
       console.error('Error starting chat:', err)
-      alert(`Failed to start chat: ${err.response?.data || err.message}`)
+      showError(`Failed to start chat: ${err.response?.data || err.message}`)
     }
   }
 
@@ -437,7 +462,7 @@ const ConnectionList = ({ connections, onRemove }: { connections: Connection[]; 
                 if (conn.userId) {
                   handleStartChat(conn.id, conn.userId)
                 } else {
-                  alert('Cannot start chat: user ID is missing.')
+                  showError('Cannot start chat: user ID is missing.')
                 }
               }}
               className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"

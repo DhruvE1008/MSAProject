@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { BookOpenIcon, EditIcon, XIcon } from 'lucide-react'
+import Toast from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 interface Course {
   id: number
@@ -28,6 +30,9 @@ const Profile = () => {
   const [error, setError] = useState("")
   const [allCourses, setAllCourses] = useState<Course[]>([])
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
+
+  // Use toast hook
+  const { toasts, showSuccess, showError, hideToast } = useToast()
 
   const years = ["First Year", "Second Year", "Third Year", "Fourth Year", "PostGraduate"]
 
@@ -66,10 +71,10 @@ const Profile = () => {
       major: profile.major,
     })
       .then(() => {
-        alert("Profile updated!")
+        showSuccess("Profile updated successfully!")
         setIsEditing(false)
       })
-      .catch(() => alert("Failed to update profile"))
+      .catch(() => showError("Failed to update profile"))
   }
 
   // allows the user to enroll in a course
@@ -86,12 +91,12 @@ const Profile = () => {
           ...profile,
           enrolledCourses: [...profile.enrolledCourses, courseToAdd]
         })
+        showSuccess(`Successfully enrolled in ${courseToAdd.name}!`)
       }
-      alert("Enrolled successfully!")
       setSelectedCourseId(null)
     } catch (err: any) {
       console.error(err)
-      alert("Failed to add course. Check console.")
+      showError("Failed to enroll in course")
     }
   }
 
@@ -100,15 +105,19 @@ const Profile = () => {
   // and updates the profile state
   const handleUnenroll = async (courseId: number) => {
     if (!profile) return
+    
+    const courseToRemove = profile.enrolledCourses.find(c => c.id === courseId)
+    
     try {
       await axios.delete(`http://localhost:5082/api/users/${userId}/unenroll/${courseId}`)
       setProfile({
         ...profile,
         enrolledCourses: profile.enrolledCourses.filter(c => c.id !== courseId)
       })
+      showSuccess(`Successfully removed ${courseToRemove?.name || 'course'}`)
     } catch (err: any) {
       console.error(err)
-      alert("Failed to remove course.")
+      showError("Failed to remove course")
     }
   }
 
@@ -121,6 +130,18 @@ const Profile = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Toast Container */}
+      <div className="fixed top-0 right-0 z-50 space-y-2 p-4">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => hideToast(toast.id)}
+          />
+        ))}
+      </div>
+
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
         <div className="relative h-48 bg-gradient-to-r from-blue-400 to-blue-600">
           <div className="absolute -bottom-12 left-6">
@@ -132,7 +153,7 @@ const Profile = () => {
           </div>
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className="absolute top-4 right-4 bg-white dark:bg-gray-700 p-2 rounded-full shadow"
+            className="absolute top-4 right-4 bg-white dark:bg-gray-700 p-2 rounded-full shadow hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
           >
             <EditIcon size={16} />
           </button>
@@ -148,7 +169,7 @@ const Profile = () => {
                   name="name"
                   value={profile.name}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white"
+                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 />
               </div>
 
@@ -158,7 +179,7 @@ const Profile = () => {
                   name="year"
                   value={profile.year}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white"
+                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 >
                   {years.map(y => (
                     <option key={y} value={y}>{y}</option>
@@ -173,7 +194,7 @@ const Profile = () => {
                   name="major"
                   value={profile.major}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white"
+                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 />
               </div>
 
@@ -184,20 +205,20 @@ const Profile = () => {
                   value={profile.bio}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white"
+                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 ></textarea>
               </div>
 
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 border rounded-md text-sm"
+                  className="px-4 py-2 border rounded-md text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-4 py-2 rounded-md text-sm text-white bg-blue-600 hover:bg-blue-700"
+                  className="px-4 py-2 rounded-md text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
                 >
                   Save Changes
                 </button>
@@ -226,7 +247,7 @@ const Profile = () => {
             <select
               value={selectedCourseId || ''}
               onChange={(e) => setSelectedCourseId(Number(e.target.value))}
-              className="px-2 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+              className="px-2 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             >
               <option value="">Select Course</option>
               {unenrolledCourses.map(course => (
@@ -237,30 +258,41 @@ const Profile = () => {
             </select>
             <button
               onClick={handleEnroll}
-              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              disabled={!selectedCourseId}
+              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Add
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {profile.enrolledCourses.map((course) => (
-            <div
-              key={course.id}
-              className="border rounded-lg p-4 relative group hover:border-blue-500 transition-colors"
-            >
-              <p className="font-semibold">{course.name}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{course.code}</p>
-              <button
-                onClick={() => handleUnenroll(course.id)}
-                className="absolute top-2 right-2 text-red-500 opacity-0 group-hover:opacity-100 transition"
+        {profile.enrolledCourses.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {profile.enrolledCourses.map((course) => (
+              <div
+                key={course.id}
+                className="border rounded-lg p-4 relative group hover:border-blue-500 transition-colors bg-gray-50 dark:bg-gray-700"
               >
-                <XIcon size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
+                <p className="font-semibold">{course.name}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{course.code}</p>
+                <button
+                  onClick={() => handleUnenroll(course.id)}
+                  className="absolute top-2 right-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-700"
+                  title="Remove course"
+                >
+                  <XIcon size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <BookOpenIcon size={48} className="mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-500 dark:text-gray-400">
+              No courses enrolled yet. Add your first course above!
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
