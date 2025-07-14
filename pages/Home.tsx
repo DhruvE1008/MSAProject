@@ -192,7 +192,7 @@ const Home = () => {
               {courseChats.map((chat) => (
                 <Link
                   key={chat.id}
-                  to={`/chat?type=course&courseId=${chat.id}`}
+                  to={`/chat/${chat.id}`}  // ✅ Changed from query params to direct route
                   className="block border-b border-gray-200 dark:border-gray-700 pb-3 last:border-0 last:pb-0 hover:bg-gray-50 dark:hover:bg-gray-700 p-2 rounded transition-colors"
                 >
                   <div className="flex justify-between items-start">
@@ -234,7 +234,7 @@ const Home = () => {
               Recent Private Chats
             </h2>
             <Link
-              to="/chat"
+              to="/chat?type=private"  // ✅ Added query param to go directly to private chats tab
               className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               View all
@@ -245,7 +245,7 @@ const Home = () => {
               {privateChats.map((chat) => (
                 <Link
                   key={chat.id}
-                  to={`/chat?type=private&chatId=${chat.id}`}
+                  to={`/chat?type=private&chatId=${chat.id}`}  // ✅ Keep query params for private chats
                   className="block border-b border-gray-200 dark:border-gray-700 pb-3 last:border-0 last:pb-0 hover:bg-gray-50 dark:hover:bg-gray-700 p-2 rounded transition-colors"
                 >
                   <div className="flex items-start space-x-3">
