@@ -7,7 +7,7 @@ import "../index.css"
 // StoryObj is imported to define the type of the story
 // makes sure that the story is typed correctly
 import type { Meta, StoryObj } from '@storybook/react'
-import Header from "../components/header"
+import Header from "../components/Header"
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../ThemeContext'
 

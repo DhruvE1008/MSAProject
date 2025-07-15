@@ -1,5 +1,5 @@
 // this file basically styles how each page of the application will look like.
-import Header from './header'
+import Header from './Header'
 import Sidebar from './Sidebar'
 // ReactNode is a type that represents any valid React child, such as a string, number, element, or an array of these.
 import { ReactNode } from 'react'
