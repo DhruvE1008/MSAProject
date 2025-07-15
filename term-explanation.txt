@@ -22,8 +22,8 @@ have in postgreSQL.
 
 Work to Do:
 maybe have an admin mode so people cant delete courses.
-mutual connections
 deploy.
+mutual connections
 implement notifications feature for the bell things
 make it look good for mobile users as well.
 README file and video.

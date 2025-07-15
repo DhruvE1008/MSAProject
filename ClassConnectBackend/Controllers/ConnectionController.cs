@@ -340,6 +340,7 @@ namespace ClassConnectBackend.Controllers
                         requesterId = requesterId,
                         receiverId = receiverId
                     });
+                }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"❌ Error sending WebSocket notification: {ex.Message}");
