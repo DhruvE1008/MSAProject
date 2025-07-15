@@ -21,13 +21,9 @@ migrations is a part of dotnet which updates the schema in my code and keeps it 
 have in postgreSQL.
 
 Work to Do:
-Advanced feature - websockets for connection requests.
-make it so that when you update things in the page, it notifies the user with a better notification.
-then change home page
-test what happens when someone removes a connection with another user
-test what happens when you remove a course from your enrolment.
+maybe have an admin mode so people cant delete courses.
+mutual connections
 deploy.
 implement notifications feature for the bell things
 make it look good for mobile users as well.
-maybe have an admin mode so people cant delete courses.
 README file and video.

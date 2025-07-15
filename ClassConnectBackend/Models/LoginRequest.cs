@@ -1,3 +1,4 @@
+// basically a Data Transfer Object (DTO) for login requests
 namespace ClassConnectBackend.Models
 {
     public class LoginRequest

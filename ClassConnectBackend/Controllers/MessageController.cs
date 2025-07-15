@@ -1,3 +1,4 @@
+// this file is used to manage messages in course chats.
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
@@ -27,18 +28,16 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
+                // gets all messages for the specified course from database
                 var messages = await _db.Messages
                     .Where(m => m.CourseId == courseId)
                     .Include(m => m.Sender)
                     .OrderBy(m => m.Timestamp)
                     .ToListAsync();
-
-                Console.WriteLine($"Found {messages.Count} messages for course {courseId}");
                 return Ok(messages);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error getting messages: {ex.Message}");
                 return StatusCode(500, $"Error getting messages: {ex.Message}");
             }
         }
@@ -50,7 +49,6 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
-                Console.WriteLine($"Sending message to course {courseId}");
 
                 // Validate the request
                 if (string.IsNullOrWhiteSpace(request.Content))
@@ -82,7 +80,7 @@ namespace ClassConnectBackend.Controllers
                     Sender = user
                 };
 
-                // Save to database
+                // Save the message to database
                 _db.Messages.Add(message);
                 await _db.SaveChangesAsync();
 
@@ -98,8 +96,6 @@ namespace ClassConnectBackend.Controllers
                     courseId = courseId
                 });
 
-                Console.WriteLine($"Message saved and broadcast with ID: {message.Id}");
-
                 return Ok(new { 
                     success = true, 
                     messageId = message.Id,
@@ -108,7 +104,6 @@ namespace ClassConnectBackend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error sending message: {ex.Message}");
                 return StatusCode(500, $"Error sending message: {ex.Message}");
             }
         }

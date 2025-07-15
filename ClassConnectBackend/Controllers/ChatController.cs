@@ -12,7 +12,11 @@ namespace ClassConnectBackend.Controllers
     [Route("api/[controller]")]
     public class ChatController : ControllerBase
     {
+        // db context is used to access the database
+        // a context is a session with the database, allowing us to query and save data
         private readonly AppDbContext _db;
+        // hub context is used to send messages to clients connected to the SignalR hub
+        // which allows real-time communication
         private readonly IHubContext<ChatHub> _hubContext;
 
         public ChatController(AppDbContext db, IHubContext<ChatHub> hubContext)
@@ -23,10 +27,15 @@ namespace ClassConnectBackend.Controllers
 
         // Get all chats for a user
         [HttpGet("user/{userId}")]
+        // task<IActionResult> is used to return an asynchronous action result
+        // IActionResult allows us to return different types of responses (e.g., Ok, NotFound, BadRequest)
         public async Task<IActionResult> GetUserChats(int userId)
         {
             try
             {
+                // finds all chats where the user is either User1 or User2
+                // includes the users and messages in the chat
+                // orders by the last message timestamp in descending order
                 var chats = await _db.Chats
                     .Where(c => c.User1Id == userId || c.User2Id == userId)
                     .Include(c => c.User1)
@@ -38,11 +47,17 @@ namespace ClassConnectBackend.Controllers
 
                 var result = chats.Select(c =>
                 {
+                    // Determine the other user in the chat
+                    // and the last message in the chat
+                    // if the user is User1, then the other user is User2, and vice versa
+                    // also formats the last message timestamp to ISO 8601 format
+                    // and checks if the last message was sent by the current user
                     var otherUser = c.User1Id == userId ? c.User2 : c.User1;
                     var lastMessage = c.Messages.OrderByDescending(m => m.Timestamp).FirstOrDefault();
                     
                     return new
                     {
+                        // message details
                         Id = c.Id,
                         ChatId = c.Id,
                         OtherUser = new
@@ -65,19 +80,18 @@ namespace ClassConnectBackend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GetUserChats: {ex.Message}");
                 return StatusCode(500, $"Error fetching user chats: {ex.Message}");
             }
         }
 
         // Get or create a chat between two users
         [HttpPost("create")]
+        // frombody means that the data from the JSON string will be set to the properties of
+        // a new CreateChatDto object.
         public async Task<IActionResult> CreateOrGetChat([FromBody] CreateChatDto dto)
         {
             try
             {
-                Console.WriteLine($"Creating chat between users {dto.User1Id} and {dto.User2Id}");
-
                 // Check if users are connected
                 var connection = await _db.Connections
                     .FirstOrDefaultAsync(c => 
@@ -85,9 +99,11 @@ namespace ClassConnectBackend.Controllers
                          (c.RequesterId == dto.User2Id && c.ReceiverId == dto.User1Id)) &&
                         c.Status == Models.ConnectionStatus.Accepted);
 
+                // just checking if the connection exists
+                // if not, we cannot create a chat so we send a bad request response
+                // this is to ensure that only connected users can create a chat
                 if (connection == null)
                 {
-                    Console.WriteLine($"No connection found between users {dto.User1Id} and {dto.User2Id}");
                     return BadRequest("Users must be connected to create a chat");
                 }
 
@@ -96,14 +112,15 @@ namespace ClassConnectBackend.Controllers
                     .FirstOrDefaultAsync(c => 
                         (c.User1Id == dto.User1Id && c.User2Id == dto.User2Id) ||
                         (c.User1Id == dto.User2Id && c.User2Id == dto.User1Id));
-
+                
+                // if the chat already exists, we return the chat ID
+                // this allows us to reuse existing chats instead of creating new ones
                 if (existingChat != null)
                 {
-                    Console.WriteLine($"Chat already exists with ID: {existingChat.Id}");
                     return Ok(new { chatId = existingChat.Id });
                 }
 
-                // Create new chat
+                // Since the chat doesn't exist we create new chat
                 var chat = new Chat
                 {
                     User1Id = Math.Min(dto.User1Id, dto.User2Id),
@@ -112,35 +129,54 @@ namespace ClassConnectBackend.Controllers
                     LastMessageAt = DateTime.UtcNow
                 };
 
+                // Add the new chat to the database
+                // and save changes to persist it
                 _db.Chats.Add(chat);
+                // await means we are waiting for the database operation to complete
+                // this is important for ensuring that the chat is created before we return the response
                 await _db.SaveChangesAsync();
 
-                Console.WriteLine($"Created new chat with ID: {chat.Id}");
+                // returns the ID of the newly created chat
                 return Ok(new { chatId = chat.Id });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error creating chat: {ex.Message}");
                 return StatusCode(500, $"Error creating chat: {ex.Message}");
             }
         }
 
         // Get messages for a specific chat
         [HttpGet("{chatId}/messages")]
+        // fromquery looks for the data in the url aka http://path?userId=123
+        // this is used to get the user ID from the query string
+        // this is useful for checking if the user has access to the chat
+        // this is different from frombody which looks for the data in the json body of the request
+        // fromquery is used for simple data types like integers, strings, etc.
+        // frombody is used for complex objects like DTOs
+        // there will be a ? in the URL to indicate that this is a query parameter
+        // for example: /api/chat/1/messages?userId=123
+        // this means we are getting messages for chat with ID 1 and checking if user with ID 123 has access to it
         public async Task<IActionResult> GetChatMessages(int chatId, [FromQuery] int userId)
         {
             try
             {
+                // c = chat, m = message, s = sender
+                // Fetch the chat and include messages and sender details
                 var chat = await _db.Chats
                     .Include(c => c.Messages)
                         .ThenInclude(m => m.Sender)
                     .FirstOrDefaultAsync(c => c.Id == chatId && (c.User1Id == userId || c.User2Id == userId));
 
+                // if the chat doesn't exist then send error.
                 if (chat == null)
                 {
                     return NotFound("Chat not found or access denied");
                 }
 
+                // Select messages and format them for the response
+                // this will return a list of messages with their details
+                // such as ID, content, timestamp, whether it was sent by the current user, sender name and avatar
+                // the messages are ordered by timestamp to show them in chronological order
                 var messages = chat.Messages
                     .OrderBy(m => m.Timestamp)
                     .Select(m => new
@@ -160,6 +196,8 @@ namespace ClassConnectBackend.Controllers
                     message.IsRead = true;
                 }
                 
+                // if there are any unread messages, we save the changes to the database
+                // the read messages will have already been stored in the database
                 if (unreadMessages.Any())
                 {
                     await _db.SaveChangesAsync();
@@ -169,18 +207,16 @@ namespace ClassConnectBackend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GetChatMessages: {ex.Message}");
                 return StatusCode(500, $"Error fetching chat messages: {ex.Message}");
             }
         }
 
-        // Send a message - NOW WITH SIGNALR SUPPORT
+        // Send a message 
         [HttpPost("{chatId}/messages")]
         public async Task<IActionResult> SendMessage(int chatId, [FromBody] SendMessageDto dto)
         {
             try
             {
-                Console.WriteLine($"Sending private message to chat {chatId} from user {dto.SenderId}");
 
                 var chat = await _db.Chats
                     .Include(c => c.User1)
@@ -199,6 +235,10 @@ namespace ClassConnectBackend.Controllers
                     return BadRequest("Sender not found");
                 }
 
+                // Create a new chat message
+                // this is the message that will be sent to the chat
+                // it contains the chat ID, sender ID, content, timestamp, and whether it has been read
+                // the sender is also included for later use in broadcasting the message
                 var message = new ChatMessage
                 {
                     ChatId = chatId,
@@ -209,6 +249,10 @@ namespace ClassConnectBackend.Controllers
                     Sender = sender
                 };
 
+                // Add the message to the chat's messages collection
+                // this will add the message to the database
+                // and allow us to retrieve it later
+                chat.Messages.Add(message);
                 _db.ChatMessages.Add(message);
                 
                 // Update last message time
@@ -216,11 +260,7 @@ namespace ClassConnectBackend.Controllers
                 
                 await _db.SaveChangesAsync();
 
-                // Send real-time message to all users in the private chat group
-                Console.WriteLine($"Sending message to chat_{chatId}");
-                Console.WriteLine($"Message content: {dto.Content}");
-                Console.WriteLine($"Sender ID: {dto.SenderId}");
-                Console.WriteLine($"Broadcasting to group: chat_{chatId}");
+                // look at ChatHub.cs to figure out how the messages are sent in real-time
                 await _hubContext.Clients.Group($"chat_{chatId}").SendAsync("ReceivePrivateMessage", new
                 {
                     id = message.Id,
@@ -231,9 +271,6 @@ namespace ClassConnectBackend.Controllers
                     timestamp = message.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                     avatar = message.Sender.ProfilePictureUrl ?? ""
                 });
-                Console.WriteLine($"Message broadcasted successfully");
-
-                Console.WriteLine($"Private message saved and broadcast with ID: {message.Id}");
 
                 return Ok(new { 
                     success = true,
@@ -243,8 +280,6 @@ namespace ClassConnectBackend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error sending message: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return StatusCode(500, $"Error sending message: {ex.Message}");
             }
         }
@@ -255,6 +290,7 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
+                // Fetch the chat and include user details
                 var chat = await _db.Chats
                     .Include(c => c.User1)
                     .Include(c => c.User2)
@@ -265,8 +301,10 @@ namespace ClassConnectBackend.Controllers
                     return NotFound("Chat not found");
                 }
 
+                // Determine the other user in the chat
                 var otherUser = chat.User1Id == userId ? chat.User2 : chat.User1;
 
+                // gets the details of the other user.
                 var result = new
                 {
                     Id = chat.Id,
@@ -292,6 +330,7 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
+                // gets all the messages in the chat
                 var chat = await _db.Chats
                     .Include(c => c.Messages)
                     .FirstOrDefaultAsync(c => c.Id == chatId && (c.User1Id == userId || c.User2Id == userId));
@@ -301,6 +340,7 @@ namespace ClassConnectBackend.Controllers
                     return NotFound("Chat not found");
                 }
 
+                // removes the chat from the database
                 _db.Chats.Remove(chat);
                 await _db.SaveChangesAsync();
 
@@ -313,6 +353,10 @@ namespace ClassConnectBackend.Controllers
         }
     }
 
+    // DTOs (Data Transfer Objects) for creating chats and sending messages
+    // these classes are the containers that receives the data from the client
+    // they are used to validate the data and ensure that the client sends the correct data
+    // this is useful for preventing errors and ensuring that the data is in the correct format
     public class CreateChatDto
     {
         public int User1Id { get; set; }

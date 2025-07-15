@@ -19,7 +19,7 @@ namespace ClassConnectBackend.Controllers
     {
         // private because we don't want to expose the database context outside this controller
         private readonly AppDbContext _db;
-        private readonly IPasswordHasher<User> _passwordHasher; // Add this line
+        private readonly IPasswordHasher<User> _passwordHasher;
 
         // Constructor injection to get the database context
         // This allows us to use the database context in our actions
@@ -83,7 +83,7 @@ namespace ClassConnectBackend.Controllers
             // updates the user properties with the values from the edit form.
             user.Name = updated.Name;
             user.Bio = updated.Bio;
-            user.Year = updated.Year; // e.g. "Freshman", "Senior", etc.
+            user.Year = updated.Year; 
             user.Major = updated.Major; // e.g. "Computer Science"
             await _db.SaveChangesAsync();
             return NoContent();

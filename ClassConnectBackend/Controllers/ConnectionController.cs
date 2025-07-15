@@ -27,6 +27,9 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
+                // gets the connections from the datbase
+                // gets the connection where the user is either the requester or the receiver
+                // and the status is accepted
                 var connections = await _db.Connections
                     .Where(c => (c.RequesterId == userId || c.ReceiverId == userId) && 
                                c.Status == Models.ConnectionStatus.Accepted)
@@ -34,6 +37,8 @@ namespace ClassConnectBackend.Controllers
                     .Include(c => c.Receiver)
                     .ToListAsync();
 
+                // selects the data of each user that the current user is connected to
+                // and returns the data in a list of anonymous objects through ToList()
                 var result = connections.Select(c => new
                 {
                     Id = c.Id,
@@ -46,13 +51,10 @@ namespace ClassConnectBackend.Controllers
                         c.Receiver.EnrolledCourses.Select(ec => ec.Name).ToList() : 
                         c.Requester.EnrolledCourses.Select(ec => ec.Name).ToList()
                 }).ToList();
-
-                Console.WriteLine($"📊 Found {result.Count} accepted connections for user {userId}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error fetching accepted connections: {ex.Message}");
                 return StatusCode(500, $"Error fetching connections: {ex.Message}");
             }
         }
@@ -63,12 +65,15 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
+                // gets the connections in the database where the status is pending
                 var pendingRequests = await _db.Connections
                     .Where(c => c.ReceiverId == userId && c.Status == Models.ConnectionStatus.Pending)
                     .Include(c => c.Requester)
                     .ThenInclude(r => r.EnrolledCourses)
                     .ToListAsync();
 
+                // selects the data of each pending request and returns it in a list of anonymous objects
+                // this will include the requester's name, major, year, avatar and course
                 var result = pendingRequests.Select(c => new
                 {
                     Id = c.Id,
@@ -78,13 +83,10 @@ namespace ClassConnectBackend.Controllers
                     Avatar = c.Requester.ProfilePictureUrl ?? "",
                     Course = c.Requester.EnrolledCourses.FirstOrDefault()?.Name ?? "No courses"
                 }).ToList();
-
-                Console.WriteLine($"📊 Found {result.Count} pending requests for user {userId}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error fetching pending requests: {ex.Message}");
                 return StatusCode(500, $"Error fetching pending requests: {ex.Message}");
             }
         }
@@ -95,11 +97,14 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
+                // gets the IDs of users in the database.
                 var existingIds = await _db.Connections
                     .Where(c => c.RequesterId == userId || c.ReceiverId == userId)
                     .Select(c => c.RequesterId == userId ? c.ReceiverId : c.RequesterId)
                     .ToListAsync();
 
+                // gets the users who are not the current user and are not already connected
+                // and are in the user's enrolled courses.
                 var suggestions = await _db.Users
                     .Where(u => u.Id != userId && !existingIds.Contains(u.Id))
                     .Include(u => u.EnrolledCourses)
@@ -113,6 +118,7 @@ namespace ClassConnectBackend.Controllers
                     Year = s.Year,
                     Avatar = s.ProfilePictureUrl ?? "",
                     Courses = s.EnrolledCourses.Select(course => course.Name).ToList(),
+                    // Placeholder for mutual connections count, can be implemented later
                     MutualConnections = 0
                 });
 
@@ -135,6 +141,8 @@ namespace ClassConnectBackend.Controllers
                     return BadRequest("Cannot send connection request to yourself");
                 }
 
+                // get the existing connection to check if it already exists
+                // this will check if there is already a connection request sent or accepted between the two users
                 var existingConnection = await _db.Connections
                     .FirstOrDefaultAsync(c => 
                         (c.RequesterId == request.RequesterId && c.ReceiverId == request.ReceiverId) ||
@@ -154,6 +162,7 @@ namespace ClassConnectBackend.Controllers
                     return BadRequest("One or both users not found");
                 }
 
+                // Create a new connection request
                 var connection = new Connection
                 {
                     RequesterId = request.RequesterId,
@@ -162,6 +171,7 @@ namespace ClassConnectBackend.Controllers
                     CreatedAt = DateTime.UtcNow
                 };
 
+                // add the connection request to the database
                 _db.Connections.Add(connection);
                 await _db.SaveChangesAsync();
 
@@ -169,6 +179,8 @@ namespace ClassConnectBackend.Controllers
                 try
                 {
                     // Notify the SENDER that their request was sent
+                    // look at ConnectionHub.cs for better understanding of how the notifications
+                    // work in real time.
                     await _connectionHubContext.Clients.Group($"User_{request.RequesterId}")
                         .SendAsync("ConnectionRequestSent", new
                         {
@@ -200,8 +212,6 @@ namespace ClassConnectBackend.Controllers
                         requesterId = request.RequesterId,
                         receiverId = request.ReceiverId
                     });
-
-                    Console.WriteLine($"📬 Connection request sent from {requester.Name} to {receiver.Name}");
                 }
                 catch (Exception ex)
                 {
@@ -212,7 +222,6 @@ namespace ClassConnectBackend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error sending connection request: {ex.Message}");
                 return StatusCode(500, $"Error sending connection request: {ex.Message}");
             }
         }
@@ -223,6 +232,7 @@ namespace ClassConnectBackend.Controllers
         {
             try
             {
+                // gets the connection request from the database
                 var connection = await _db.Connections
                     .Include(c => c.Requester)
                     .Include(c => c.Receiver)
@@ -231,6 +241,7 @@ namespace ClassConnectBackend.Controllers
                 if (connection == null)
                     return NotFound("Connection request not found");
 
+                // set the status of the connection to accepted
                 connection.Status = Models.ConnectionStatus.Accepted;
                 await _db.SaveChangesAsync();
 
@@ -264,8 +275,6 @@ namespace ClassConnectBackend.Controllers
                         requesterId = connection.RequesterId,
                         receiverId = connection.ReceiverId
                     });
-
-                    Console.WriteLine($"✅ Connection accepted between {connection.Requester.Name} and {connection.Receiver.Name}");
                 }
                 catch (Exception ex)
                 {
@@ -276,7 +285,6 @@ namespace ClassConnectBackend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error accepting connection: {ex.Message}");
                 return StatusCode(500, $"Error accepting connection request: {ex.Message}");
             }
         }
@@ -298,6 +306,7 @@ namespace ClassConnectBackend.Controllers
                 var requesterId = connection.RequesterId;
                 var receiverId = connection.ReceiverId;
 
+                // Remove the connection request from the database
                 _db.Connections.Remove(connection);
                 await _db.SaveChangesAsync();
 
@@ -331,9 +340,6 @@ namespace ClassConnectBackend.Controllers
                         requesterId = requesterId,
                         receiverId = receiverId
                     });
-
-                    Console.WriteLine($"❌ Connection rejected between {connection.Requester.Name} and {connection.Receiver.Name}");
-                }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"❌ Error sending WebSocket notification: {ex.Message}");
@@ -343,7 +349,6 @@ namespace ClassConnectBackend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error rejecting connection: {ex.Message}");
                 return StatusCode(500, $"Error rejecting connection request: {ex.Message}");
             }
         }
@@ -377,8 +382,6 @@ namespace ClassConnectBackend.Controllers
                     .Include(c => c.Messages) // Include messages for cascade delete
                     .ToListAsync();
 
-                Console.WriteLine($"Found {chatsToDelete.Count} chats to delete between users {userId} and {otherUserId}");
-
                 // Remove the chats (this will also remove messages due to cascade delete)
                 _db.Chats.RemoveRange(chatsToDelete);
                 
@@ -397,8 +400,6 @@ namespace ClassConnectBackend.Controllers
                         affectedUserId = otherUserId,
                         message = $"{currentUserName} removed the connection"
                     });
-
-                    Console.WriteLine($"🗑️ Connection removed: {connection.Requester.Name} <-> {connection.Receiver.Name}");
                 }
                 catch (Exception ex)
                 {
@@ -409,12 +410,15 @@ namespace ClassConnectBackend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error removing connection: {ex.Message}");
                 return StatusCode(500, $"Error removing connection: {ex.Message}");
             }
         }
     }
 
+    // Data Transfer Object (DTO) for connection requests
+    // this is used to validate the data sent from the client
+    // it ensures that the client sends the correct data and prevents errors
+    // it is also used to ensure that the data is in the correct format
     public class ConnectionRequestDto
     {
         public int RequesterId { get; set; }

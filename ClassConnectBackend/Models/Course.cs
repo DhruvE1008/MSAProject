@@ -1,3 +1,7 @@
+// the model for a course in the ClassConnect application
+// it contains properties for the course ID, code, name, department, professor, description,
+// and lists of members and messages associated with the course
+// this model is used to represent a course in the application and interact with the database
 namespace ClassConnectBackend.Models{
     public class Course
     {

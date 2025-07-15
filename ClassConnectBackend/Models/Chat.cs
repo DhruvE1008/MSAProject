@@ -1,7 +1,12 @@
+// this file defines the data models for private chat functionality in the ClassConnect application
+// data annotations are used to validate the data and ensure it meets certain criteria
 using System.ComponentModel.DataAnnotations;
 
 namespace ClassConnectBackend.Models
 {
+    // the chat model represents a private chat between two users
+    // it contains properties for the chat ID, user IDs of the participants, and timestamps
+    // it also includes navigation properties to link to the users and messages in the chat
     public class Chat
     {
         public int Id { get; set; }
@@ -16,6 +21,9 @@ namespace ClassConnectBackend.Models
         public ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
     }
 
+    // the message class represents the data for a message in a private chat
+    // it includes properties for the message ID, chat ID, sender ID, content, timestamp, and read status
+    // it also has navigation properties to link to the chat and the sender user
     public class ChatMessage
     {
         public int Id { get; set; }

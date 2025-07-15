@@ -1,3 +1,4 @@
+// this file defines the data models for connections between users in the ClassConnect application
 namespace ClassConnectBackend.Models
 {
     public class Connection
@@ -13,6 +14,10 @@ namespace ClassConnectBackend.Models
         public User Receiver { get; set; }
     }
 
+    // the potential statuses for a connection
+    // Pending: connection request sent but not yet accepted or rejected
+    // Accepted: connection request accepted by the receiver
+    // Rejected: connection request rejected by the receiver
     public enum ConnectionStatus
     {
         Pending,

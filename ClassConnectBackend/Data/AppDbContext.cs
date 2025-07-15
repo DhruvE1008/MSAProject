@@ -8,6 +8,8 @@ namespace ClassConnectBackend.Data
     // Main database context for the application
     public class AppDbContext : DbContext
     {
+        // Constructor that takes DbContextOptions to configure the context
+        // base(options) calls the base class constructor
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) {}
 
         // DbSets for all main entities

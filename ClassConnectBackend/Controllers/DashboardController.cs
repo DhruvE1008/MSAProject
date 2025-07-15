@@ -1,4 +1,5 @@
-// Create a new file: Controllers/DashboardController.cs
+// This file is used for the home page of the application
+// It contains methods to get recent course chats and recent private chats for a user
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,9 @@ namespace ClassConnectBackend.Controllers
             _db = db;
         }
 
+        // This method retrieves the most recent course chats for a user
+        // It returns the last message in each course the user is enrolled in
+        // along with the participant count and other relevant details
         [HttpGet("recent-course-chats/{userId}")]
         public async Task<ActionResult> GetRecentCourseChats(int userId)
         {
@@ -33,9 +37,11 @@ namespace ClassConnectBackend.Controllers
                     return NotFound("User not found");
                 }
 
+                // gets the courses the user is enrolled in, in a list
                 var userCourses = user.EnrolledCourses.ToList();
                 var recentChats = new List<object>();
 
+                // for each course the user is enrolled in, get the last message and participant count
                 foreach (var course in userCourses)
                 {
                     // Get the most recent message for this course
@@ -81,32 +87,32 @@ namespace ClassConnectBackend.Controllers
                     .OrderByDescending(chat => ((dynamic)chat).lastMessageTime ?? DateTime.MinValue)
                     .Take(3)
                     .ToList();
-
-                Console.WriteLine($"Found {sortedChats.Count} recent course chats for user {userId}");
                 return Ok(sortedChats);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error getting recent course chats: {ex.Message}");
                 return StatusCode(500, $"Error getting recent course chats: {ex.Message}");
             }
         }
 
+        // gets the recent private chats for a user
         [HttpGet("recent-private-chats/{userId}")]
         public async Task<ActionResult> GetRecentPrivateChats(int userId)
         {
             try
             {
+                // gets all the private chats for the user
                 var userChats = await _db.Chats
                     .Where(c => c.User1Id == userId || c.User2Id == userId)
                     .Include(c => c.User1)
                     .Include(c => c.User2)
-                    .Include(c => c.Messages.OrderByDescending(m => m.Timestamp).Take(1)) // Changed from CreatedAt to Timestamp
+                    .Include(c => c.Messages.OrderByDescending(m => m.Timestamp).Take(1)) 
                     .ThenInclude(m => m.Sender)
                     .ToListAsync();
 
                 var recentChats = new List<object>();
 
+                // for each chat, get the other user and the last message
                 foreach (var chat in userChats)
                 {
                     var otherUser = chat.User1Id == userId ? chat.User2 : chat.User1;
@@ -123,18 +129,15 @@ namespace ClassConnectBackend.Controllers
                         isRead = true
                     });
                 }
-
+                // Sort by most recent message timestamp and take top 3
                 var sortedChats = recentChats
                     .OrderByDescending(chat => ((dynamic)chat).lastMessageTime ?? DateTime.MinValue)
                     .Take(3)
                     .ToList();
-
-                Console.WriteLine($"Found {sortedChats.Count} recent private chats for user {userId}");
                 return Ok(sortedChats);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error getting recent private chats: {ex.Message}");
                 return StatusCode(500, $"Error getting recent private chats: {ex.Message}");
             }
         }

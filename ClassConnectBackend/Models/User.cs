@@ -1,3 +1,4 @@
+// dataannotations.schema is used for the NotMapped attribute
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ClassConnectBackend.Models {
@@ -14,6 +15,7 @@ namespace ClassConnectBackend.Models {
         public string ProfilePictureUrl { get; set; } = ""; // URL to profile picture
         public List<Course> EnrolledCourses { get; set; } = new();
 
+        // will be used in the frontend to get the user's password when authenticating the account.
         [NotMapped]
         public string? Password { get; set; } // Not mapped to the database, used for user input only
     }
