@@ -27,6 +27,18 @@ export const API_ENDPOINTS = {
   // Course endpoints
   courses: `${config.baseURL}/api/courses`,
   
+  // Connection endpoints
+  connection: `${config.baseURL}/api/connection`,
+ 
+  // Dashboard endpoints
+  dashboard: `${config.baseURL}/api/dashboard`,
+  
+  // Chat endpoints
+  chat: `${config.baseURL}/api/chat`,
+  
+  // Message endpoints
+  messages: `${config.baseURL}/api/messages`,
+  
   // SignalR hubs
   chatHub: `${config.signalRURL}/chatHub`,
   connectionHub: `${config.signalRURL}/connectionHub`

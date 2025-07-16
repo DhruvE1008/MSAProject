@@ -67,7 +67,7 @@ const Connections = () => {
   const fetchUserCourses = useCallback(async () => {
     if (!userId) return
     try {
-      const res = await axios.get(`${API_BASE_URL}/courses/user/${userId}`)
+      const res = await axios.get(`${API_ENDPOINTS.courses}/user/${userId}`)
       const courseNames = res.data.map((course: any) => course.name || course.Name)
       setUserCourses(courseNames)
       setAllCourses(['All Courses', ...courseNames])
@@ -80,7 +80,7 @@ const Connections = () => {
     if (!userId) return
     try {
       console.log('🔄 Fetching connections...')
-      const res = await axios.get(`${API_BASE_URL}/Connection/accepted/${userId}`)
+      const res = await axios.get(`${API_ENDPOINTS.connection}/accepted/${userId}`)
       setConnections(res.data || [])
       console.log(`✅ Loaded ${res.data?.length || 0} connections`)
     } catch (err) {
@@ -93,7 +93,7 @@ const Connections = () => {
     if (!userId) return
     try {
       console.log('🔄 Fetching requests for user:', userId)
-      const res = await axios.get(`${API_BASE_URL}/Connection/pending/${userId}`)
+      const res = await axios.get(`${API_ENDPOINTS.connection}/pending/${userId}`)
       console.log('📥 Received requests data:', res.data)
       setPendingRequests(res.data || [])
       console.log(`✅ Loaded ${res.data?.length || 0} pending requests`)
@@ -107,7 +107,7 @@ const Connections = () => {
     if (!userId) return
     try {
       console.log('🔄 Fetching suggestions...')
-      const res = await axios.get(`${API_BASE_URL}/Connection/suggestions/${userId}`)
+      const res = await axios.get(`${API_ENDPOINTS.connection}/suggestions/${userId}`)
       setSuggestedConnections(res.data || [])
       console.log(`✅ Loaded ${res.data?.length || 0} suggestions`)
     } catch (err) {
@@ -120,7 +120,7 @@ const Connections = () => {
     if (!userId) return
     try {
       console.log('🔄 Fetching outgoing requests...')
-      const res = await axios.get(`${API_BASE_URL}/Connection/outgoing/${userId}`)
+      const res = await axios.get(`${API_ENDPOINTS.connection}/outgoing/${userId}`)
       setOutgoingRequestIds(new Set(res.data.map((req: any) => req.ReceiverId)))
       console.log(`✅ Loaded ${res.data?.length || 0} outgoing requests`)
     } catch (err: any) {
@@ -250,7 +250,7 @@ const Connections = () => {
   const handleAcceptRequest = async (id: number) => {
     try {
       const request = pendingRequests.find(req => req.id === id)
-      await axios.post(`${API_BASE_URL}/Connection/requests/${id}/accept`)
+      await axios.post(`${API_ENDPOINTS.connection}/requests/${id}/accept`)
       showSuccess(`Connection request from ${request?.name || 'user'} accepted!`)
       // UI will update via SignalR event
     } catch (err) {
@@ -262,7 +262,7 @@ const Connections = () => {
   const handleRejectRequest = async (id: number) => {
     try {
       const request = pendingRequests.find(req => req.id === id)
-      await axios.post(`${API_BASE_URL}/Connection/requests/${id}/reject`)
+      await axios.post(`${API_ENDPOINTS.connection}/requests/${id}/reject`)
       showSuccess(`Connection request from ${request?.name || 'user'} declined`)
       // UI will update via SignalR event
     } catch (err) {
@@ -275,7 +275,7 @@ const Connections = () => {
     try {
       console.log(`🗑️ Removing connection ${connectionId}...`)
       const connection = connections.find(conn => conn.id === connectionId)
-      await axios.delete(`${API_BASE_URL}/Connection/${connectionId}?userId=${userId}`)
+      await axios.delete(`${API_ENDPOINTS.connection}/${connectionId}?userId=${userId}`)
       console.log(`✅ Connection ${connectionId} removed successfully`)
       showSuccess(`Connection with ${connection?.name || 'user'} removed`)
       // UI will update via SignalR event
@@ -293,7 +293,7 @@ const Connections = () => {
     setOutgoingRequestIds(prev => new Set(prev).add(receiverId)) // Optimistic update
     try {
       const suggestion = suggestedConnections.find(sugg => sugg.id === receiverId)
-      await axios.post(`${API_BASE_URL}/Connection/request`, {
+      await axios.post(`${API_ENDPOINTS.connection}/request`, {
         requesterId: userId,
         receiverId,
       })
@@ -427,7 +427,7 @@ const ConnectionList = ({ connections, onRemove, showError }: { connections: Con
   const handleStartChat = async (connectionId: number, otherUserId: number) => {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
     try {
-      const response = await axios.post(`${API_BASE_URL}/Chat/create`, {
+      const response = await axios.post(`${API_ENDPOINTS.chat}/create`, {
         user1Id: currentUser.id,
         user2Id: otherUserId
       })

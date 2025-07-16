@@ -278,7 +278,7 @@ const Chat = () => {
   // Fetch courses
   const fetchCourses = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/courses/user/${userId}`)
+      const res = await fetch(`${API_ENDPOINTS.courses}/user/${userId}`)
       const data = await res.json()
       setCourses(data)
 
@@ -297,7 +297,7 @@ const Chat = () => {
   // Load messages for course
   const loadMessagesForCourse = async (courseId: number) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/courses/${courseId}/messages`)
+      const res = await fetch(`${API_ENDPOINTS.courses}/${courseId}/messages`)
       
       if (!res.ok) {
         throw new Error(`Failed to load messages: ${res.status}`)
@@ -345,7 +345,7 @@ const Chat = () => {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/courses/${selectedCourse.id}/messages`, {
+      const res = await fetch(`${API_ENDPOINTS.courses}/${selectedCourse.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(messageData)
@@ -368,7 +368,7 @@ const Chat = () => {
   // Fetch private chats
   const fetchPrivateChats = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/Chat/user/${userId}`)
+      const response = await axios.get(`${API_ENDPOINTS.chat}/user/${userId}`)
       
       const chats = response.data.map((chat: any) => ({
         ...chat,
@@ -384,7 +384,7 @@ const Chat = () => {
   // Fetch private messages
   const fetchPrivateMessages = async (chatId: number) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/Chat/${chatId}/messages?userId=${userId}`)
+      const response = await axios.get(`${API_ENDPOINTS.chat}/${chatId}/messages?userId=${userId}`)
       const messages = response.data
       
       // Store in allPrivateMessages
@@ -406,7 +406,7 @@ const Chat = () => {
     try {
       const chatId = selectedPrivateChat.chatId || selectedPrivateChat.id
       
-      await axios.post(`${API_BASE_URL}/Chat/${chatId}/messages`, {
+      await axios.post(`${API_ENDPOINTS.chat}/${chatId}/messages`, {
         senderId: userId,
         content: message
       })

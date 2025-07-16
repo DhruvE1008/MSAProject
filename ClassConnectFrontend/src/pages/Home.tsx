@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { BookOpenIcon, UsersIcon, MessageCircleIcon, CheckIcon, XIcon } from 'lucide-react'
 import axios from 'axios'
 import { useToast } from '../hooks/useToast'
-import { API_BASE_URL } from '../config/api'
+import { API_BASE_URL, API_ENDPOINTS } from '../config/api'
 
 interface CourseChat {
   id: number
@@ -47,7 +47,7 @@ const Home = () => {
   const fetchCourseChats = useCallback(async () => {
     try {
       console.log('🔄 Fetching recent course chats...')
-      const res = await axios.get(`${API_BASE_URL}/Dashboard/recent-course-chats/${userId}`)
+      const res = await axios.get(`${API_ENDPOINTS.dashboard}/recent-course-chats/${userId}`)
       
       const courseChatsData = res.data.map((chat: any) => ({
         id: chat.id,
@@ -70,7 +70,7 @@ const Home = () => {
   const fetchPrivateChats = useCallback(async () => {
     try {
       console.log('🔄 Fetching recent private chats...')
-      const res = await axios.get(`${API_BASE_URL}/Dashboard/recent-private-chats/${userId}`)
+      const res = await axios.get(`${API_ENDPOINTS.dashboard}/recent-private-chats/${userId}`)
       
       const privateChatsData = res.data.map((chat: any) => ({
         id: chat.id,
@@ -92,7 +92,7 @@ const Home = () => {
   // Fetch connection requests
   const fetchConnectionRequests = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/Connection/pending/${userId}`)
+      const res = await axios.get(`${API_ENDPOINTS.connection}/pending/${userId}`)
       setConnectionRequests(res.data.slice(0, 3))
     } catch (err) {
       console.error('Error fetching connection requests:', err)
@@ -103,7 +103,7 @@ const Home = () => {
   // Handle accepting connection request
   const handleAcceptRequest = async (requestId: number) => {
     try {
-      await axios.post(`${API_BASE_URL}/Connection/requests/${requestId}/accept`)
+      await axios.post(`${API_ENDPOINTS.connection}/requests/${requestId}/accept`)
       // Remove the accepted request from the list
       setConnectionRequests(prev => prev.filter(req => req.id !== requestId))
       showSuccess('Connection request accepted!')
@@ -116,7 +116,7 @@ const Home = () => {
   // Handle rejecting connection request
   const handleRejectRequest = async (requestId: number) => {
     try {
-      await axios.post(`${API_BASE_URL}/Connection/requests/${requestId}/reject`)
+      await axios.post(`${API_ENDPOINTS.connection}/requests/${requestId}/reject`)
       // Remove the rejected request from the list
       setConnectionRequests(prev => prev.filter(req => req.id !== requestId))
       showSuccess('Connection request declined')
