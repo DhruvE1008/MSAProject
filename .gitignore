@@ -5,3 +5,5 @@ storybook-static
 appsettings.Development.json
 bin/
 obj/
+.env.development
+.env.production

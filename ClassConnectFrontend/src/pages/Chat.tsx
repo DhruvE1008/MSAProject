@@ -3,8 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { SendIcon, UserIcon, MessageCircleIcon, Hash, ArrowLeft } from 'lucide-react'
 import axios from 'axios' 
 import * as signalR from '@microsoft/signalr'
-
-const API_BASE_URL = 'http://localhost:5082/api'
+import { API_BASE_URL, API_ENDPOINTS } from '../config/api'
 
 // Course Chat interfaces
 interface CourseMessage {
@@ -109,7 +108,7 @@ const Chat = () => {
   // Initialize SignalR connection
   useEffect(() => {
     const newConnection = new signalR.HubConnectionBuilder()
-      .withUrl('http://localhost:5082/chatHub')
+      .withUrl(API_ENDPOINTS.chatHub)
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Information)
       .build()

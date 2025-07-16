@@ -5,6 +5,7 @@ import SwitchingThemes from '../components/SwitchingThemes'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import axios from 'axios'
+import { API_ENDPOINTS } from '../config/api'
 
 interface LoginProps {
   onLogin: () => void
@@ -23,7 +24,7 @@ const Login = ({ onLogin }: LoginProps) => {
     setIsLoading(true)
     
     try {
-      const response = await axios.post('http://localhost:5082/api/users/login', { email, password })
+      const response = await axios.post(API_ENDPOINTS.login, { email, password })
 
       if (response.status === 200) {
         const user = response.data

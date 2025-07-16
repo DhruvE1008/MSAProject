@@ -12,8 +12,7 @@ import {
 } from 'lucide-react'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
-
-const API_BASE_URL = 'http://localhost:5082/api'
+import { API_BASE_URL, API_ENDPOINTS } from '../config/api'
 
 interface Connection {
   id: number
@@ -155,7 +154,7 @@ const Connections = () => {
 
       // Setup SignalR
       const connection = new signalR.HubConnectionBuilder()
-        .withUrl('http://localhost:5082/connectionHub')
+        .withUrl(API_ENDPOINTS.connectionHub)
         .withAutomaticReconnect([0, 2000, 10000, 30000])
         .build()
 

@@ -8,6 +8,7 @@ import { BellIcon } from 'lucide-react'
 import SwitchingThemes from './SwitchingThemes'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
+import { API_ENDPOINTS } from '../config/api'
 
 // JSON API converts PascalCase to camelCase, so we use camelCase here
 interface ProfileData {
@@ -38,7 +39,7 @@ const Header = () => {
     const fetchData = async () => {
       try {
         console.log('Fetching profile for user:', userId)
-        const profileRes = await axios.get(`http://localhost:5082/api/users/${userId}`)
+        const profileRes = await axios.get(`${API_ENDPOINTS.users}/${userId}`)
         console.log('Profile data received:', profileRes.data)
         setProfile(profileRes.data)
       } catch (e) {

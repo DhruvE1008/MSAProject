@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+import { API_ENDPOINTS } from '../config/api'
 
 interface Course {
   id: number;
@@ -47,18 +48,18 @@ const Courses = () => {
 
   useEffect(() => {
     // Fetch all courses
-    axios.get<Course[]>('http://localhost:5082/api/courses')
+    axios.get<Course[]>(API_ENDPOINTS.courses)
       .then(res => setCourses(res.data))
       .catch(err => console.error("Failed to fetch courses", err))
 
     // Fetch enrolled courses for the user
-    axios.get<Course[]>(`http://localhost:5082/api/courses/user/${userId}`)
+    axios.get<Course[]>(`${API_ENDPOINTS.courses}/user/${userId}`)
       .then(res => setEnrolledCourses(res.data))
       .catch(err => console.error("Failed to fetch user's enrolled courses", err))
   }, [userId])
 
   const handleRemoveCourse = (courseId: number) => {
-    axios.delete(`http://localhost:5082/api/courses/${courseId}`)
+    axios.delete(`${API_ENDPOINTS.courses}/${courseId}`)
       .then(() => {
         showSuccess('Course removed successfully!')
         setCourses(prev => prev.filter(course => course.id !== courseId))
@@ -70,7 +71,7 @@ const Courses = () => {
   }
 
   const handleCreateCourse = () => {
-    axios.post('http://localhost:5082/api/courses', newCourse)
+    axios.post(API_ENDPOINTS.courses, newCourse)
       .then(res => {
         showSuccess('Course created successfully!')
         setCourses(prev => [...prev, res.data])
@@ -111,7 +112,7 @@ const Courses = () => {
         ...editCourseData,
         id: editingCourseId,
       }
-      await axios.put(`http://localhost:5082/api/courses/${editingCourseId}`, updatedCourse)
+      await axios.put(`${API_ENDPOINTS.courses}/${editingCourseId}`, updatedCourse)
       showSuccess('Course updated successfully!')
       setCourses(prev =>
         prev.map(c => (c.id === editingCourseId ? (updatedCourse as Course) : c))
@@ -128,14 +129,14 @@ const Courses = () => {
   const handleEnrollToggle = async (courseId: number, isEnrolled: boolean) => {
     try {
       if (isEnrolled) {
-        await axios.delete(`http://localhost:5082/api/users/${userId}/unenroll/${courseId}`);
+        await axios.delete(`${API_ENDPOINTS.users}/${userId}/unenroll/${courseId}`);
         showSuccess('Unenrolled from course!');
       } else {
-        await axios.post(`http://localhost:5082/api/users/${userId}/enroll/${courseId}`);
+        await axios.post(`${API_ENDPOINTS.users}/${userId}/enroll/${courseId}`);
         showSuccess('Enrolled in course!');
       }
       // Refresh enrolled courses
-      const res = await axios.get<Course[]>(`http://localhost:5082/api/courses/user/${userId}`);
+      const res = await axios.get<Course[]>(`${API_ENDPOINTS.courses}/user/${userId}`);
       setEnrolledCourses(res.data);
     } catch {
       showError('Failed to update enrollment');

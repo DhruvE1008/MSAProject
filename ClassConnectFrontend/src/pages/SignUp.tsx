@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeftIcon, EyeOffIcon, EyeIcon } from 'lucide-react'
 import SwitchingThemes from '../components/SwitchingThemes'
 import axios from 'axios'
+import { API_ENDPOINTS } from '../config/api'
 
 interface SignUpProps {
   onSignUp: () => void
@@ -98,7 +99,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   try {
     // Send the user data in the request body
-    const response = await axios.post('http://localhost:5082/api/users', newUser, {
+    const response = await axios.post(API_ENDPOINTS.users, newUser, {
       headers: {
         'Content-Type': 'application/json'
       }

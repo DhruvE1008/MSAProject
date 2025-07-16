@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom'
 import { BookOpenIcon, UsersIcon, MessageCircleIcon, CheckIcon, XIcon } from 'lucide-react'
 import axios from 'axios'
 import { useToast } from '../hooks/useToast'
-
-const API_BASE_URL = 'http://localhost:5082/api'
+import { API_BASE_URL } from '../config/api'
 
 interface CourseChat {
   id: number

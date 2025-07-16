@@ -3,6 +3,7 @@ import axios from 'axios'
 import { BookOpenIcon, EditIcon, XIcon } from 'lucide-react'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+import { API_ENDPOINTS } from '../config/api'
 
 interface Course {
   id: number
@@ -39,8 +40,8 @@ const Profile = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const profileRes = await axios.get(`http://localhost:5082/api/users/${userId}`)
-        const courseRes = await axios.get(`http://localhost:5082/api/courses`)
+        const profileRes = await axios.get(`${API_ENDPOINTS.users}/${userId}`)
+        const courseRes = await axios.get(API_ENDPOINTS.courses)
         setProfile(profileRes.data)
         setAllCourses(courseRes.data)
         setLoading(false)
@@ -63,7 +64,7 @@ const Profile = () => {
 
   const handleSave = () => {
     if (!profile) return
-    axios.put(`http://localhost:5082/api/users/${userId}`, {
+    axios.put(`${API_ENDPOINTS.users}/${userId}`, {
       id: profile.id,
       name: profile.name,
       bio: profile.bio,
@@ -84,7 +85,7 @@ const Profile = () => {
     if (!selectedCourseId || !profile) return
 
     try {
-      await axios.post(`http://localhost:5082/api/users/${userId}/enroll/${selectedCourseId}`)
+      await axios.post(`${API_ENDPOINTS.users}/${userId}/enroll/${selectedCourseId}`)
       const courseToAdd = allCourses.find(c => c.id === selectedCourseId)
       if (courseToAdd) {
         setProfile({
@@ -109,7 +110,7 @@ const Profile = () => {
     const courseToRemove = profile.enrolledCourses.find(c => c.id === courseId)
     
     try {
-      await axios.delete(`http://localhost:5082/api/users/${userId}/unenroll/${courseId}`)
+      await axios.delete(`${API_ENDPOINTS.users}/${userId}/unenroll/${courseId}`)
       setProfile({
         ...profile,
         enrolledCourses: profile.enrolledCourses.filter(c => c.id !== courseId)
