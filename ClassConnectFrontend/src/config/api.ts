@@ -18,39 +18,7 @@ export const config = {
   signalRURL: SIGNALR_URL
 }
 
-// Simple request cache to prevent duplicate API calls
-const requestCache = new Map<string, { data: any; timestamp: number; ttl: number }>()
-
-export const cachedRequest = async (url: string, ttlSeconds: number = 30) => {
-  const now = Date.now()
-  const cached = requestCache.get(url)
-  
-  // Return cached data if it's still valid
-  if (cached && (now - cached.timestamp) < cached.ttl * 1000) {
-    console.log(`📦 Using cached data for: ${url}`)
-    return cached.data
-  }
-  
-  // Make fresh request
-  console.log(`🔄 Making fresh request to: ${url}`)
-  const response = await fetch(url)
-  const data = await response.json()
-  
-  // Cache the response
-  requestCache.set(url, {
-    data,
-    timestamp: now,
-    ttl: ttlSeconds
-  })
-  
-  return data
-}
-
-// Clear cache function
-export const clearCache = () => {
-  requestCache.clear()
-  console.log('🗑️ API cache cleared')
-}
+// ...existing code...
 
 // Common API endpoints
 export const API_ENDPOINTS = {

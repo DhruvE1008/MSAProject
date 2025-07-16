@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { SendIcon, UserIcon, MessageCircleIcon, Hash, ArrowLeft } from 'lucide-react'
 import axios from 'axios' 
 import * as signalR from '@microsoft/signalr'
-import { API_BASE_URL, API_ENDPOINTS, cachedRequest } from '../config/api'
+import { API_BASE_URL, API_ENDPOINTS } from '../config/api'
 
 // Course Chat interfaces
 interface CourseMessage {
@@ -278,11 +278,11 @@ const Chat = () => {
   // Fetch courses
   const fetchCourses = async () => {
     try {
-      const data = await cachedRequest(`${API_ENDPOINTS.courses}/user/${userId}`, 120) // Cache for 2 minutes
-      setCourses(data)
+      const res = await axios.get(`${API_ENDPOINTS.courses}/user/${userId}`)
+      setCourses(res.data)
 
       if (courseId) {
-        const course = data.find((c: Course) => c.id === parseInt(courseId))
+        const course = res.data.find((c: Course) => c.id === parseInt(courseId))
         if (course) {
           setSelectedCourse(course)
           loadMessagesForCourse(course.id)

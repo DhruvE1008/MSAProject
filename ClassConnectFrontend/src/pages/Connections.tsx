@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
-import { API_BASE_URL, API_ENDPOINTS, cachedRequest } from '../config/api'
+import { API_BASE_URL, API_ENDPOINTS } from '../config/api'
 
 interface Connection {
   id: number
@@ -67,8 +67,8 @@ const Connections = () => {
   const fetchUserCourses = useCallback(async () => {
     if (!userId) return
     try {
-      const data = await cachedRequest(`${API_ENDPOINTS.courses}/user/${userId}`, 120) // Cache for 2 minutes
-      const courseNames = data.map((course: any) => course.name || course.Name)
+      const res = await axios.get(`${API_ENDPOINTS.courses}/user/${userId}`)
+      const courseNames = res.data.map((course: any) => course.name || course.Name)
       setUserCourses(courseNames)
       setAllCourses(['All Courses', ...courseNames])
     } catch (err) {
@@ -80,9 +80,9 @@ const Connections = () => {
     if (!userId) return
     try {
       console.log('🔄 Fetching connections...')
-      const data = await cachedRequest(`${API_ENDPOINTS.connection}/accepted/${userId}`, 60) // Cache for 1 minute
-      setConnections(data || [])
-      console.log(`✅ Loaded ${data?.length || 0} connections`)
+      const res = await axios.get(`${API_ENDPOINTS.connection}/accepted/${userId}`)
+      setConnections(res.data || [])
+      console.log(`✅ Loaded ${res.data?.length || 0} connections`)
     } catch (err) {
       console.error('❌ Error fetching connections:', err)
       setConnections([])
@@ -93,10 +93,10 @@ const Connections = () => {
     if (!userId) return
     try {
       console.log('🔄 Fetching requests for user:', userId)
-      const data = await cachedRequest(`${API_ENDPOINTS.connection}/pending/${userId}`, 30) // Cache for 30 seconds
-      console.log('📥 Received requests data:', data)
-      setPendingRequests(data || [])
-      console.log(`✅ Loaded ${data?.length || 0} pending requests`)
+      const res = await axios.get(`${API_ENDPOINTS.connection}/pending/${userId}`)
+      console.log('📥 Received requests data:', res.data)
+      setPendingRequests(res.data || [])
+      console.log(`✅ Loaded ${res.data?.length || 0} pending requests`)
     } catch (err) {
       console.error('❌ Error fetching requests:', err)
       setPendingRequests([])
