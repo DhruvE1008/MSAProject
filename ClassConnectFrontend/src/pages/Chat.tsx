@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { SendIcon, UserIcon, MessageCircleIcon, Hash, ArrowLeft } from 'lucide-react'
 import axios from 'axios' 
 import * as signalR from '@microsoft/signalr'
-import { API_BASE_URL, API_ENDPOINTS } from '../config/api'
+import { API_BASE_URL, API_ENDPOINTS, cachedRequest } from '../config/api'
 
 // Course Chat interfaces
 interface CourseMessage {
@@ -278,8 +278,7 @@ const Chat = () => {
   // Fetch courses
   const fetchCourses = async () => {
     try {
-      const res = await fetch(`${API_ENDPOINTS.courses}/user/${userId}`)
-      const data = await res.json()
+      const data = await cachedRequest(`${API_ENDPOINTS.courses}/user/${userId}`, 120) // Cache for 2 minutes
       setCourses(data)
 
       if (courseId) {

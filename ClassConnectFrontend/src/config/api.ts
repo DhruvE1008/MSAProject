@@ -18,6 +18,40 @@ export const config = {
   signalRURL: SIGNALR_URL
 }
 
+// Simple request cache to prevent duplicate API calls
+const requestCache = new Map<string, { data: any; timestamp: number; ttl: number }>()
+
+export const cachedRequest = async (url: string, ttlSeconds: number = 30) => {
+  const now = Date.now()
+  const cached = requestCache.get(url)
+  
+  // Return cached data if it's still valid
+  if (cached && (now - cached.timestamp) < cached.ttl * 1000) {
+    console.log(`📦 Using cached data for: ${url}`)
+    return cached.data
+  }
+  
+  // Make fresh request
+  console.log(`🔄 Making fresh request to: ${url}`)
+  const response = await fetch(url)
+  const data = await response.json()
+  
+  // Cache the response
+  requestCache.set(url, {
+    data,
+    timestamp: now,
+    ttl: ttlSeconds
+  })
+  
+  return data
+}
+
+// Clear cache function
+export const clearCache = () => {
+  requestCache.clear()
+  console.log('🗑️ API cache cleared')
+}
+
 // Common API endpoints
 export const API_ENDPOINTS = {
   // User endpoints
@@ -27,17 +61,17 @@ export const API_ENDPOINTS = {
   // Course endpoints
   courses: `${config.baseURL}/api/courses`,
   
-  // Connection endpoints
-  connection: `${config.baseURL}/api/connection`,
+  // Connection endpoints (uses [controller] = "Connection")
+  connection: `${config.baseURL}/api/Connection`,
  
-  // Dashboard endpoints
-  dashboard: `${config.baseURL}/api/dashboard`,
+  // Dashboard endpoints (uses [controller] = "Dashboard")
+  dashboard: `${config.baseURL}/api/Dashboard`,
   
-  // Chat endpoints
-  chat: `${config.baseURL}/api/chat`,
+  // Chat endpoints (uses [controller] = "Chat")
+  chat: `${config.baseURL}/api/Chat`,
   
-  // Message endpoints
-  messages: `${config.baseURL}/api/messages`,
+  // Message endpoints (special route structure)
+  messages: `${config.baseURL}/api/courses`, // Messages are under courses/{courseId}/messages
   
   // SignalR hubs
   chatHub: `${config.signalRURL}/chatHub`,

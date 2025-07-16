@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
-import { API_BASE_URL, API_ENDPOINTS } from '../config/api'
+import { API_BASE_URL, API_ENDPOINTS, cachedRequest } from '../config/api'
 
 interface Connection {
   id: number
@@ -67,8 +67,8 @@ const Connections = () => {
   const fetchUserCourses = useCallback(async () => {
     if (!userId) return
     try {
-      const res = await axios.get(`${API_ENDPOINTS.courses}/user/${userId}`)
-      const courseNames = res.data.map((course: any) => course.name || course.Name)
+      const data = await cachedRequest(`${API_ENDPOINTS.courses}/user/${userId}`, 120) // Cache for 2 minutes
+      const courseNames = data.map((course: any) => course.name || course.Name)
       setUserCourses(courseNames)
       setAllCourses(['All Courses', ...courseNames])
     } catch (err) {
@@ -80,9 +80,9 @@ const Connections = () => {
     if (!userId) return
     try {
       console.log('🔄 Fetching connections...')
-      const res = await axios.get(`${API_ENDPOINTS.connection}/accepted/${userId}`)
-      setConnections(res.data || [])
-      console.log(`✅ Loaded ${res.data?.length || 0} connections`)
+      const data = await cachedRequest(`${API_ENDPOINTS.connection}/accepted/${userId}`, 60) // Cache for 1 minute
+      setConnections(data || [])
+      console.log(`✅ Loaded ${data?.length || 0} connections`)
     } catch (err) {
       console.error('❌ Error fetching connections:', err)
       setConnections([])
@@ -93,10 +93,10 @@ const Connections = () => {
     if (!userId) return
     try {
       console.log('🔄 Fetching requests for user:', userId)
-      const res = await axios.get(`${API_ENDPOINTS.connection}/pending/${userId}`)
-      console.log('📥 Received requests data:', res.data)
-      setPendingRequests(res.data || [])
-      console.log(`✅ Loaded ${res.data?.length || 0} pending requests`)
+      const data = await cachedRequest(`${API_ENDPOINTS.connection}/pending/${userId}`, 30) // Cache for 30 seconds
+      console.log('📥 Received requests data:', data)
+      setPendingRequests(data || [])
+      console.log(`✅ Loaded ${data?.length || 0} pending requests`)
     } catch (err) {
       console.error('❌ Error fetching requests:', err)
       setPendingRequests([])
@@ -137,16 +137,24 @@ const Connections = () => {
     let connectionInstance: signalR.HubConnection | null = null
 
     const setupConnection = async () => {
-      // Always fetch data first
+      // Fetch only essential data on initial load
       console.log('🔄 Fetching initial data...')
       try {
-        await Promise.all([
-          fetchUserCourses(),
-          fetchConnections(),
-          fetchRequests(),
-          fetchSuggestions(),
-          fetchOutgoingRequests()
-        ])
+        // Always fetch user courses (needed for filtering)
+        await fetchUserCourses()
+        
+        // Only fetch data for current active tab
+        if (activeTab === 'connections') {
+          await fetchConnections()
+        } else if (activeTab === 'requests') {
+          await fetchRequests()
+        } else if (activeTab === 'discover') {
+          await Promise.all([
+            fetchSuggestions(),
+            fetchOutgoingRequests()
+          ])
+        }
+        
         console.log('✅ Initial data loaded successfully')
       } catch (err) {
         console.error('❌ Error loading initial data:', err)
@@ -164,39 +172,55 @@ const Connections = () => {
       // Handle connection request received (for requests page)
       connection.on('ConnectionRequestReceived', (data) => {
         console.log('📬 Connection request received:', data)
-        fetchRequests() // This should update the requests page immediately
-        fetchSuggestions()
+        // Only fetch what's needed for the current tab
+        if (activeTab === 'requests') {
+          fetchRequests()
+        } else if (activeTab === 'discover') {
+          fetchSuggestions()
+        }
       })
 
       // Handle connection request sent (for discover page)
       connection.on('ConnectionRequestSent', (data) => {
         console.log('📤 Connection request sent:', data)
-        fetchOutgoingRequests()
-        fetchSuggestions()
+        // Only update discover tab data
+        if (activeTab === 'discover') {
+          fetchOutgoingRequests()
+          fetchSuggestions()
+        }
       })
 
       // Handle connection accepted (for all pages)
       connection.on('ConnectionAccepted', (data) => {
         console.log('✅ Connection accepted:', data)
-        fetchConnections()
-        fetchRequests()
-        fetchOutgoingRequests()
-        fetchSuggestions()
+        // Update based on current active tab
+        if (activeTab === 'connections') {
+          fetchConnections()
+        } else if (activeTab === 'requests') {
+          fetchRequests()
+        } else if (activeTab === 'discover') {
+          fetchSuggestions()
+        }
       })
 
       // Handle connection rejected (for all pages)
       connection.on('ConnectionRejected', (data) => {
         console.log('❌ Connection rejected:', data)
-        fetchRequests()
-        fetchOutgoingRequests()
-        fetchSuggestions()
+        // Only update relevant tabs
+        if (activeTab === 'requests') {
+          fetchRequests()
+        } else if (activeTab === 'discover') {
+          fetchSuggestions()
+        }
       })
 
       // Handle connection removed (for connections page)
       connection.on('ConnectionRemoved', (data) => {
         console.log('🗑️ Connection removed:', data)
-        fetchConnections()
-        fetchSuggestions()
+        // Only update if on connections tab
+        if (activeTab === 'connections') {
+          fetchConnections()
+        }
       })
 
       connection.onreconnecting(() => {
@@ -314,6 +338,23 @@ const Connections = () => {
     }
   }
 
+  // --- Tab switching with lazy loading ---
+  const handleTabSwitch = async (newTab: 'connections' | 'requests' | 'discover') => {
+    setActiveTab(newTab)
+    
+    // Lazy load data for the new tab if not already loaded
+    if (newTab === 'connections' && connections.length === 0) {
+      await fetchConnections()
+    } else if (newTab === 'requests' && pendingRequests.length === 0) {
+      await fetchRequests()
+    } else if (newTab === 'discover' && suggestedConnections.length === 0) {
+      await Promise.all([
+        fetchSuggestions(),
+        fetchOutgoingRequests()
+      ])
+    }
+  }
+
   // --- Filtering ---
   const filterConnections = (list: (Connection | Suggestion)[]) => {
     return list.filter((conn) => {
@@ -352,7 +393,7 @@ const Connections = () => {
           {['connections', 'requests', 'discover'].map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab as 'connections' | 'requests' | 'discover')}
+              onClick={() => handleTabSwitch(tab as 'connections' | 'requests' | 'discover')}
               className={`py-2 px-4 transition-colors duration-200 ${
                 activeTab === tab
                   ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
@@ -361,9 +402,7 @@ const Connections = () => {
             >
               {tab === 'connections' ? 'My Connections' : tab === 'requests' ? 'Requests' : 'Discover'}
               {tab === 'requests' && pendingRequests.length > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                  {pendingRequests.length}
-                </span>
+                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">{pendingRequests.length}</span>
               )}
             </button>
           ))}

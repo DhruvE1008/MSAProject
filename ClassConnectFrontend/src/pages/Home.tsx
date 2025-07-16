@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { BookOpenIcon, UsersIcon, MessageCircleIcon, CheckIcon, XIcon } from 'lucide-react'
 import axios from 'axios'
 import { useToast } from '../hooks/useToast'
-import { API_BASE_URL, API_ENDPOINTS } from '../config/api'
+import { API_BASE_URL, API_ENDPOINTS, cachedRequest } from '../config/api'
 
 interface CourseChat {
   id: number
@@ -47,9 +47,9 @@ const Home = () => {
   const fetchCourseChats = useCallback(async () => {
     try {
       console.log('🔄 Fetching recent course chats...')
-      const res = await axios.get(`${API_ENDPOINTS.dashboard}/recent-course-chats/${userId}`)
+      const data = await cachedRequest(`${API_ENDPOINTS.dashboard}/recent-course-chats/${userId}`, 60) // Cache for 1 minute
       
-      const courseChatsData = res.data.map((chat: any) => ({
+      const courseChatsData = data.map((chat: any) => ({
         id: chat.id,
         courseName: chat.courseName,
         lastMessage: chat.lastMessage,
@@ -70,9 +70,9 @@ const Home = () => {
   const fetchPrivateChats = useCallback(async () => {
     try {
       console.log('🔄 Fetching recent private chats...')
-      const res = await axios.get(`${API_ENDPOINTS.dashboard}/recent-private-chats/${userId}`)
+      const data = await cachedRequest(`${API_ENDPOINTS.dashboard}/recent-private-chats/${userId}`, 60) // Cache for 1 minute
       
-      const privateChatsData = res.data.map((chat: any) => ({
+      const privateChatsData = data.map((chat: any) => ({
         id: chat.id,
         otherUserName: chat.otherUserName,
         otherUserAvatar: chat.otherUserAvatar,
@@ -92,8 +92,8 @@ const Home = () => {
   // Fetch connection requests
   const fetchConnectionRequests = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_ENDPOINTS.connection}/pending/${userId}`)
-      setConnectionRequests(res.data.slice(0, 3))
+      const data = await cachedRequest(`${API_ENDPOINTS.connection}/pending/${userId}`, 30) // Cache for 30 seconds
+      setConnectionRequests(data.slice(0, 3))
     } catch (err) {
       console.error('Error fetching connection requests:', err)
       setConnectionRequests([])
