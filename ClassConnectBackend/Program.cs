@@ -59,9 +59,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        // Get allowed origins from configuration
-        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() 
-                           ?? new[] { "http://localhost:3000", "http://localhost:5173" };
+        // Hardcoded origins for testing
+        var allowedOrigins = new[] { 
+            "http://localhost:3000", 
+            "http://localhost:5173",
+            "https://msa-project-70o9ut4j7-dhruvs-projects-6cf35e51.vercel.app"
+        };
+        
+        // Log the origins being used (for debugging)
+        Console.WriteLine($"CORS Origins: {string.Join(", ", allowedOrigins)}");
         
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader() // allows any headers including custom headers
