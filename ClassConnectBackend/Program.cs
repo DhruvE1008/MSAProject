@@ -59,11 +59,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        // Hardcoded origins for testing
-        var allowedOrigins = new[] { 
+        // Get allowed origins from configuration, with fallback to localhost
+        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new[] { 
             "http://localhost:3000", 
-            "http://localhost:5173",
-            "https://msa-project-70o9ut4j7-dhruvs-projects-6cf35e51.vercel.app"
+            "http://localhost:5173"
         };
         
         // Log the origins being used (for debugging)
