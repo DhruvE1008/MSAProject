@@ -55,6 +55,30 @@ namespace ClassConnectBackend.Controllers
             return CreatedAtAction(nameof(Get), new { id = user.Id }, user);
         }
 
+        // Login endpoint - must be BEFORE the {id} route
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
+        {
+            // Find user by email (case-insensitive)
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == loginRequest.Email.ToLower());
+
+            if (user == null)
+            {
+                return Unauthorized(new { message = "Invalid email or password." });
+            }
+
+            var passwordVerificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, loginRequest.Password);
+
+            if (passwordVerificationResult == PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new { message = "Invalid email or password." });
+            }
+
+            // Optionally generate JWT token here for auth, or just return user data
+            return Ok(user);
+        }
+
         // get {id} is to get a user by id
         [HttpGet("{id}")]
         public async Task<ActionResult<User>> Get(int id)
@@ -155,30 +179,6 @@ namespace ClassConnectBackend.Controllers
                 return NotFound();
 
             return Ok(user.EnrolledCourses);
-        }
-
-
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
-        {
-            // Find user by email (case-insensitive)
-            var user = await _db.Users
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == loginRequest.Email.ToLower());
-
-            if (user == null)
-            {
-                return Unauthorized(new { message = "Invalid email or password." });
-            }
-
-            var passwordVerificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, loginRequest.Password);
-
-            if (passwordVerificationResult == PasswordVerificationResult.Failed)
-            {
-                return Unauthorized(new { message = "Invalid email or password." });
-            }
-
-            // Optionally generate JWT token here for auth, or just return user data
-            return Ok(user);
         }
     }
 }

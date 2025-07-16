@@ -69,6 +69,17 @@ builder.Services.AddCors(options =>
         Console.WriteLine($"CORS Origins: {string.Join(", ", allowedOrigins)}");
         
         policy.WithOrigins(allowedOrigins)
+              .SetIsOriginAllowed(origin => {
+                  // Allow any Vercel deployment URL for your project
+                  if (origin.StartsWith("https://msa-project-") && origin.EndsWith(".vercel.app")) {
+                      Console.WriteLine($"✅ Allowing Vercel URL: {origin}");
+                      return true;
+                  }
+                  // Allow configured origins
+                  bool isAllowed = allowedOrigins.Contains(origin);
+                  Console.WriteLine($"{(isAllowed ? "✅" : "❌")} Origin check: {origin}");
+                  return isAllowed;
+              })
               .AllowAnyHeader() // allows any headers including custom headers
               .AllowAnyMethod()  // allows any HTTP methods (GET, POST, PUT, DELETE, etc.)
               .AllowCredentials()  // Important for SignalR; allows cookies and authentication from frontend
