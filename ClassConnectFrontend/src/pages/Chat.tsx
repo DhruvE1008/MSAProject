@@ -59,6 +59,8 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   // Sidebar visibility for mobile
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  // Track if a chat is selected (for mobile back button)
+  const [chatSelected, setChatSelected] = useState(false)
 
   // Course chat state
   const [courseMessages, setCourseMessages] = useState<CourseMessage[]>([])
@@ -332,8 +334,11 @@ const Chat = () => {
   const handleSelectCourse = (course: Course) => {
     setSelectedCourse(course)
     loadMessagesForCourse(course.id)
-    // On mobile, hide sidebar after selecting
-    if (window.innerWidth < 768) setSidebarOpen(false)
+    // On mobile, hide sidebar after selecting and mark chat as selected
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false)
+      setChatSelected(true)
+    }
   }
 
   // Send course message
@@ -430,8 +435,11 @@ const Chat = () => {
     } else {
       fetchPrivateChats()
     }
-    // On mobile, show sidebar when switching tabs
-    if (window.innerWidth < 768) setSidebarOpen(true)
+    // On mobile, show sidebar when switching tabs and reset chatSelected
+    if (window.innerWidth < 768) {
+      setSidebarOpen(true)
+      setChatSelected(false)
+    }
   }
 
   // Helper function to format message timestamps
@@ -452,14 +460,22 @@ const Chat = () => {
 
   return (
     <div className="h-[calc(100vh-10rem)] flex flex-col md:flex-row">
-      {/* Sidebar toggle for mobile */}
+      {/* Mobile tab switcher and back button */}
       <div className="md:hidden flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="text-blue-600 dark:text-blue-400 font-semibold"
-        >
-          {sidebarOpen ? 'Hide Chats' : 'Show Chats'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleTabSwitch('course')}
+            className={`px-3 py-1 rounded-md text-sm font-medium ${activeTab === 'course' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+          >
+            <Hash size={14} className="inline mr-1" /> Courses
+          </button>
+          <button
+            onClick={() => handleTabSwitch('private')}
+            className={`px-3 py-1 rounded-md text-sm font-medium ${activeTab === 'private' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+          >
+            <MessageCircleIcon size={14} className="inline mr-1" /> Private
+          </button>
+        </div>
         <span className="font-semibold text-lg">Chat</span>
       </div>
 
@@ -467,7 +483,7 @@ const Chat = () => {
       <div
         className={`w-full md:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto z-10 ${
           sidebarOpen ? '' : 'hidden md:block'
-        }`}
+        } ${chatSelected ? 'hidden md:block' : ''}`}
       >
         {/* Header with back button and tabs (desktop only) */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 hidden md:block">
@@ -545,8 +561,11 @@ const Chat = () => {
                     if (!allPrivateMessages[chatId.toString()] || allPrivateMessages[chatId.toString()].length === 0) {
                       fetchPrivateMessages(chatId)
                     }
-                    // On mobile, hide sidebar after selecting
-                    if (window.innerWidth < 768) setSidebarOpen(false)
+                    // On mobile, hide sidebar after selecting and mark chat as selected
+                    if (window.innerWidth < 768) {
+                      setSidebarOpen(false)
+                      setChatSelected(true)
+                    }
                   }}
                   className={`w-full text-left p-3 rounded-lg mb-1 ${
                     selectedPrivateChat?.id === chat.id
@@ -587,6 +606,22 @@ const Chat = () => {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
+        {/* Mobile back button when chat is selected */}
+        {chatSelected && (
+          <div className="md:hidden flex items-center px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => {
+                setSidebarOpen(true)
+                setChatSelected(false)
+                setSelectedCourse(null)
+                setSelectedPrivateChat(null)
+              }}
+              className="text-blue-600 dark:text-blue-400 font-semibold"
+            >
+              ← Back to Chats
+            </button>
+          </div>
+        )}
         {/* Course Chat */}
         {activeTab === 'course' && selectedCourse ? (
           <>
