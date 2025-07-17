@@ -475,7 +475,7 @@ const ConnectionList = ({ connections, onRemove, showError }: { connections: Con
 
     const chatId = response.data.chatId
 
-    navigate(`/chat/private/${chatId}`)
+    navigate(`/chat?type=private&chatId=${chatId}`)
   } catch (err: any) {
     console.error('Error starting chat:', err)
     showError(`Failed to start chat: ${err.response?.data || err.message}`)
