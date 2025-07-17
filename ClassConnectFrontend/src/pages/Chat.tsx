@@ -57,6 +57,8 @@ const Chat = () => {
   const [message, setMessage] = useState('')
   const [activeTab, setActiveTab] = useState<'course' | 'private'>(chatType as 'course' | 'private')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Sidebar visibility for mobile
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   // Course chat state
   const [courseMessages, setCourseMessages] = useState<CourseMessage[]>([])
@@ -330,6 +332,8 @@ const Chat = () => {
   const handleSelectCourse = (course: Course) => {
     setSelectedCourse(course)
     loadMessagesForCourse(course.id)
+    // On mobile, hide sidebar after selecting
+    if (window.innerWidth < 768) setSidebarOpen(false)
   }
 
   // Send course message
@@ -426,6 +430,8 @@ const Chat = () => {
     } else {
       fetchPrivateChats()
     }
+    // On mobile, show sidebar when switching tabs
+    if (window.innerWidth < 768) setSidebarOpen(true)
   }
 
   // Helper function to format message timestamps
@@ -446,10 +452,25 @@ const Chat = () => {
 
   return (
     <div className="h-[calc(100vh-10rem)] flex flex-col md:flex-row">
+      {/* Sidebar toggle for mobile */}
+      <div className="md:hidden flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="text-blue-600 dark:text-blue-400 font-semibold"
+        >
+          {sidebarOpen ? 'Hide Chats' : 'Show Chats'}
+        </button>
+        <span className="font-semibold text-lg">Chat</span>
+      </div>
+
       {/* Sidebar */}
-      <div className="w-full md:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-        {/* Header with back button and tabs */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div
+        className={`w-full md:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto z-10 ${
+          sidebarOpen ? '' : 'hidden md:block'
+        }`}
+      >
+        {/* Header with back button and tabs (desktop only) */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 hidden md:block">
           <div className="flex items-center gap-3 mb-4">
             <button
               onClick={() => window.history.back()}
@@ -459,7 +480,6 @@ const Chat = () => {
             </button>
             <h2 className="font-semibold text-lg">Chat</h2>
           </div>
-          
           {/* Tab Toggle */}
           <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
             <button
@@ -525,6 +545,8 @@ const Chat = () => {
                     if (!allPrivateMessages[chatId.toString()] || allPrivateMessages[chatId.toString()].length === 0) {
                       fetchPrivateMessages(chatId)
                     }
+                    // On mobile, hide sidebar after selecting
+                    if (window.innerWidth < 768) setSidebarOpen(false)
                   }}
                   className={`w-full text-left p-3 rounded-lg mb-1 ${
                     selectedPrivateChat?.id === chat.id

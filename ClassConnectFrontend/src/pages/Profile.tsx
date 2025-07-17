@@ -244,7 +244,7 @@ const Profile = () => {
             <BookOpenIcon size={18} className="mr-2 text-blue-500" />
             My Courses
           </h2>
-          <div className="flex space-x-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
             <select
               value={selectedCourseId || ''}
               onChange={(e) => setSelectedCourseId(Number(e.target.value))}

@@ -70,9 +70,6 @@ const Sidebar = ({ onLogout }: SidebarProps) => {
         className={`bg-white dark:bg-gray-800 w-64 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 fixed md:static top-0 bottom-0 left-0 z-40 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
         <div className="p-4">
-          <h2 className="text-xl font-bold text-center text-blue-600 dark:text-blue-400 mb-8 mt-4">
-            ClassConnect
-          </h2>
           <nav className="space-y-2">
             {/* maps every item in the navItems array in the sidebar. */}
             {navItems.map((item) => (
