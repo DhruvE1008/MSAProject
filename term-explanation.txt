@@ -21,7 +21,6 @@ migrations is a part of dotnet which updates the schema in my code and keeps it 
 have in postgreSQL.
 
 Work to Do:
-check why people get doxxed when sending messages
 make it look good for mobile users as well.
 maybe improve the sidebar so that it doesnt say ClassConnect on the side
 check the connections chat button and why it gets a 404 error.
@@ -30,5 +29,6 @@ check why it doesnt load connections requests quicker
 
 README file and video.
 
+remove
 mutual connections
 implement notifications feature for the bell things

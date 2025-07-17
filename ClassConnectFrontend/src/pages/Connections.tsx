@@ -1,5 +1,6 @@
 // src/components/Connections.tsx
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import * as signalR from '@microsoft/signalr'
 import axios from 'axios'
 import {
@@ -463,23 +464,23 @@ const Connections = () => {
 }
 
 const ConnectionList = ({ connections, onRemove, showError }: { connections: Connection[]; onRemove: (id: number) => void; showError: (message: string) => void }) => {
+  const navigate = useNavigate()
   const handleStartChat = async (connectionId: number, otherUserId: number) => {
-    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
-    try {
-      const response = await axios.post(`${API_ENDPOINTS.chat}/create`, {
-        user1Id: currentUser.id,
-        user2Id: otherUserId
-      })
-      const chatId = response.data.chatId
-      setTimeout(() => {
-        window.location.href = `/chat?type=private&chatId=${chatId}`
-      }, 100)
-    } catch (err: any) {
-      console.error('Error starting chat:', err)
-      showError(`Failed to start chat: ${err.response?.data || err.message}`)
-    }
-  }
+  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+  try {
+    const response = await axios.post(`${API_ENDPOINTS.chat}/create`, {
+      user1Id: currentUser.id,
+      user2Id: otherUserId
+    })
 
+    const chatId = response.data.chatId
+
+    navigate(`/chat/private/${chatId}`)
+  } catch (err: any) {
+    console.error('Error starting chat:', err)
+    showError(`Failed to start chat: ${err.response?.data || err.message}`)
+  }
+}
   if (!connections.length) return <EmptyState message="No connections found." />
 
   return (
@@ -495,18 +496,18 @@ const ConnectionList = ({ connections, onRemove, showError }: { connections: Con
             </div>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => {
-                if (conn.userId) {
-                  handleStartChat(conn.id, conn.userId)
-                } else {
-                  showError('Cannot start chat: user ID is missing.')
-                }
-              }}
-              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"
-            >
-              <MessageCircle size={16} /> Chat
-            </button>
+          <button
+            onClick={() => {
+              if (conn.userId) {
+                handleStartChat(conn.id, conn.userId)
+              } else {
+                showError('Cannot start chat: user ID is missing.')
+              }
+            }}
+            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"
+          >
+            <MessageCircle size={16} /> Chat
+          </button>
             <button
               onClick={() => onRemove(conn.id)}
               className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"

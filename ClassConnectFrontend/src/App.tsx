@@ -65,6 +65,7 @@ export function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/courses" element={<Courses />} />
               <Route path="/chat/:courseId" element={<Chat />} />
+              <Route path="/chat/private/:chatId" element={<Chat />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/connections" element={<Connections />} />
               <Route path="*" element={<Navigate to="/" replace />} />
