@@ -46,7 +46,6 @@ const Home = () => {
   // Fetch recent course chats
   const fetchCourseChats = useCallback(async () => {
     try {
-      console.log('🔄 Fetching recent course chats...')
       const res = await axios.get(`${API_ENDPOINTS.dashboard}/recent-course-chats/${userId}`)
       const courseChatsData = res.data.map((chat: any) => ({
         id: chat.id,
@@ -57,7 +56,6 @@ const Home = () => {
         participantCount: chat.participantCount
       }))
       setCourseChats(courseChatsData)
-      console.log(`✅ Loaded ${courseChatsData.length} recent course chats`)
     } catch (err) {
       console.error('❌ Error fetching recent course chats:', err)
       setCourseChats([])
@@ -67,7 +65,6 @@ const Home = () => {
   // Fetch recent private chats
   const fetchPrivateChats = useCallback(async () => {
     try {
-      console.log('🔄 Fetching recent private chats...')
       const res = await axios.get(`${API_ENDPOINTS.dashboard}/recent-private-chats/${userId}`)
       const privateChatsData = res.data.map((chat: any) => ({
         id: chat.id,
@@ -78,7 +75,6 @@ const Home = () => {
         isRead: chat.isRead
       }))
       setPrivateChats(privateChatsData)
-      console.log(`✅ Loaded ${privateChatsData.length} recent private chats`)
     } catch (err) {
       console.error('❌ Error fetching recent private chats:', err)
       setPrivateChats([])
@@ -151,6 +147,7 @@ const Home = () => {
     fetchAllData()
   }, [userId, fetchCourseChats, fetchPrivateChats, fetchConnectionRequests])
 
+  // Show loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">

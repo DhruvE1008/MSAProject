@@ -30,14 +30,10 @@ export function App() {
 
   const handleLogin = () => {
     setIsAuthenticated(true);
-    // Remove this line - user data is already saved in Login.tsx
-    // sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
   };
 
   const handleSignUp = () => {
     setIsAuthenticated(true);
-    // Remove this line - user data is already saved in SignUp.tsx
-    // sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
   };
   
   const handleLogout = () => {

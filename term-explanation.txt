@@ -19,14 +19,3 @@ I used postgreSQL for the database where I store all my relations and my backend
 
 migrations is a part of dotnet which updates the schema in my code and keeps it in sync with the database I
 have in postgreSQL.
-
-Work to Do:
-make it look good for mobile users as well.
-
-check why it doesnt load connections requests quicker
-
-README file and video.
-
-remove
-mutual connections
-implement notifications feature for the bell things

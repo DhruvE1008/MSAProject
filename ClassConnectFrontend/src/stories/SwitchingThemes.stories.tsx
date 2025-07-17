@@ -1,3 +1,5 @@
+// the storybook configuration for the SwitchingThemes component which allows users to switch between light
+//  and dark themes.
 import { Meta, StoryObj } from '@storybook/react'
 import SwitchingThemes from '../components/SwitchingThemes'
 import { ThemeProvider } from '../ThemeContext'

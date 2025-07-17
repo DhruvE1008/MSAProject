@@ -41,7 +41,6 @@ interface Suggestion {
   year: string
   avatar: string
   courses: string[]
-  mutualConnections: number
 }
 
 const Connections = () => {
@@ -80,10 +79,8 @@ const Connections = () => {
   const fetchConnections = useCallback(async () => {
     if (!userId) return
     try {
-      console.log('🔄 Fetching connections...')
       const res = await axios.get(`${API_ENDPOINTS.connection}/accepted/${userId}`)
       setConnections(res.data || [])
-      console.log(`✅ Loaded ${res.data?.length || 0} connections`)
     } catch (err) {
       console.error('❌ Error fetching connections:', err)
       setConnections([])
@@ -93,11 +90,8 @@ const Connections = () => {
   const fetchRequests = useCallback(async () => {
     if (!userId) return
     try {
-      console.log('🔄 Fetching requests for user:', userId)
       const res = await axios.get(`${API_ENDPOINTS.connection}/pending/${userId}`)
-      console.log('📥 Received requests data:', res.data)
       setPendingRequests(res.data || [])
-      console.log(`✅ Loaded ${res.data?.length || 0} pending requests`)
     } catch (err) {
       console.error('❌ Error fetching requests:', err)
       setPendingRequests([])
@@ -107,10 +101,8 @@ const Connections = () => {
   const fetchSuggestions = useCallback(async () => {
     if (!userId) return
     try {
-      console.log('🔄 Fetching suggestions...')
       const res = await axios.get(`${API_ENDPOINTS.connection}/suggestions/${userId}`)
       setSuggestedConnections(res.data || [])
-      console.log(`✅ Loaded ${res.data?.length || 0} suggestions`)
     } catch (err) {
       console.error('❌ Error fetching suggestions:', err)
       setSuggestedConnections([])
@@ -120,10 +112,8 @@ const Connections = () => {
   const fetchOutgoingRequests = useCallback(async () => {
     if (!userId) return
     try {
-      console.log('🔄 Fetching outgoing requests...')
       const res = await axios.get(`${API_ENDPOINTS.connection}/outgoing/${userId}`)
       setOutgoingRequestIds(new Set(res.data.map((req: any) => req.ReceiverId)))
-      console.log(`✅ Loaded ${res.data?.length || 0} outgoing requests`)
     } catch (err: any) {
       console.error('❌ Error fetching outgoing requests:', err)
       setOutgoingRequestIds(new Set())
@@ -139,7 +129,6 @@ const Connections = () => {
 
     const setupConnection = async () => {
       // Fetch only essential data on initial load
-      console.log('🔄 Fetching initial data...')
       try {
         // Always fetch user courses (needed for filtering)
         await fetchUserCourses()
@@ -156,7 +145,6 @@ const Connections = () => {
           ])
         }
         
-        console.log('✅ Initial data loaded successfully')
       } catch (err) {
         console.error('❌ Error loading initial data:', err)
       }
@@ -172,7 +160,6 @@ const Connections = () => {
 
       // Handle connection request received (for requests page)
       connection.on('ConnectionRequestReceived', (data) => {
-        console.log('📬 Connection request received:', data)
         // Only fetch what's needed for the current tab
         if (activeTab === 'requests') {
           fetchRequests()
@@ -183,7 +170,6 @@ const Connections = () => {
 
       // Handle connection request sent (for discover page)
       connection.on('ConnectionRequestSent', (data) => {
-        console.log('📤 Connection request sent:', data)
         // Only update discover tab data
         if (activeTab === 'discover') {
           fetchOutgoingRequests()
@@ -193,7 +179,6 @@ const Connections = () => {
 
       // Handle connection accepted (for all pages)
       connection.on('ConnectionAccepted', (data) => {
-        console.log('✅ Connection accepted:', data)
         // Update based on current active tab
         if (activeTab === 'connections') {
           fetchConnections()
@@ -206,7 +191,6 @@ const Connections = () => {
 
       // Handle connection rejected (for all pages)
       connection.on('ConnectionRejected', (data) => {
-        console.log('❌ Connection rejected:', data)
         // Only update relevant tabs
         if (activeTab === 'requests') {
           fetchRequests()
@@ -217,7 +201,6 @@ const Connections = () => {
 
       // Handle connection removed (for connections page)
       connection.on('ConnectionRemoved', (data) => {
-        console.log('🗑️ Connection removed:', data)
         // Only update if on connections tab
         if (activeTab === 'connections') {
           fetchConnections()
@@ -225,12 +208,10 @@ const Connections = () => {
       })
 
       connection.onreconnecting(() => {
-        console.log('🔄 SignalR reconnecting...')
         isConnected = false
       })
 
       connection.onreconnected(() => {
-        console.log('🔄 SignalR reconnected!')
         isConnected = true
         // Refresh all data after reconnection
         fetchConnections()
@@ -240,18 +221,15 @@ const Connections = () => {
       })
 
       connection.onclose(() => {
-        console.log('❌ SignalR connection closed')
         isConnected = false
       })
 
       try {
         await connection.start()
-        console.log('✅ SignalR Connected')
         isConnected = true
         
         // Join user group for targeted notifications
         await connection.invoke('JoinUserGroup', userId.toString())
-        console.log(`✅ Joined user group: User_${userId}`)
       } catch (err) {
         console.error('❌ SignalR connection error:', err)
         isConnected = false
@@ -298,10 +276,8 @@ const Connections = () => {
 
   const handleRemoveConnection = async (connectionId: number) => {
     try {
-      console.log(`🗑️ Removing connection ${connectionId}...`)
       const connection = connections.find(conn => conn.id === connectionId)
       await axios.delete(`${API_ENDPOINTS.connection}/${connectionId}?userId=${userId}`)
-      console.log(`✅ Connection ${connectionId} removed successfully`)
       showSuccess(`Connection with ${connection?.name || 'user'} removed`)
       // UI will update via SignalR event
     } catch (err: any) {
@@ -569,7 +545,6 @@ const SuggestionList = ({ suggestions, onConnect, outgoingRequestIds }: { sugges
               <div className="font-semibold text-gray-900 dark:text-gray-100">{sugg.name}</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">{sugg.major} • {sugg.year}</div>
               <div className="text-xs text-gray-400 dark:text-gray-500">{sugg.courses?.join(', ')}</div>
-              <div className="text-xs text-blue-500 dark:text-blue-400">{sugg.mutualConnections} mutual connections</div>
             </div>
           </div>
           {outgoingRequestIds.has(sugg.id) ? (

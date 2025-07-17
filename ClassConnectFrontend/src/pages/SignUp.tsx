@@ -30,8 +30,14 @@ const SignUp = ({ onSignUp }: SignUpProps) => {
     if (errors[name]) setErrors({ ...errors, [name]: '' })
   }
 
+  // Toggle password visibility
+  // This function toggles the visibility of the password field between text and password type.
+  // It is used to show or hide the password when the user clicks on the eye icon.
   const toggleShowPassword = () => setShowPassword(!showPassword)
 
+  // Validate form data before submission
+  // This function checks if the required fields are filled and if the passwords match.
+  // It returns an object with error messages for each field that has an error.
   const validate = () => {
     const newErrors: Record<string, string> = {}
     if (!formData.firstName) newErrors.firstName = 'First name is required'
@@ -46,6 +52,9 @@ const SignUp = ({ onSignUp }: SignUpProps) => {
     return newErrors
   }
 
+  // Generate a random username for the user
+  // This function creates a unique username by combining an adjective and a noun with a random number.
+  // It helps to create an anonymous username for the user.
   const adjectives = [
   'Hidden',
   'Anonymous',

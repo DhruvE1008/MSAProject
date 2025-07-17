@@ -1,8 +1,13 @@
+// the storybook configuration for the Toast component
+// which displays notifications to the user.
+// It allows users to see success or error messages in a visually appealing way.
 import React, { useState } from 'react'
 import { Meta, StoryObj } from '@storybook/react'
 import Toast from '../components/Toast'
 
 const meta: Meta<typeof Toast> = {
+  // Meta information for the Toast component
+  // This includes the title for the story, the component itself, and any additional configurations.
   title: 'Components/Toast',
   component: Toast,
   tags: ['autodocs'],
@@ -46,6 +51,7 @@ const ToastWrapper = ({ ...args }) => {
   )
 }
 
+// shows the success and error toast messages in the storybook
 export const Success: Story = {
   render: (args) => <ToastWrapper {...args} />,
   args: {

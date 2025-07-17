@@ -1,3 +1,7 @@
+// this file contains the API configuration for the ClassConnect frontend application
+// and it uses environment variables to set the base URL for the API and SignalR connections.
+// Vite automatically loads .env files based on NODE_ENV
+
 // API configuration using environment variables
 // Vite automatically loads .env files based on NODE_ENV
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -17,8 +21,6 @@ export const config = {
   baseURL: API_BASE_URL,
   signalRURL: SIGNALR_URL
 }
-
-// ...existing code...
 
 // Common API endpoints
 export const API_ENDPOINTS = {

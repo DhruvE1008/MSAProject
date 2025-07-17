@@ -25,25 +25,17 @@ const Header = () => {
   const userId = currentUser.id || currentUser.Id;
   const [profile, setProfile] = useState<ProfileData | null>(null)
   
-  console.log('Header - currentUser:', currentUser)
-  console.log('Header - userId:', userId)
-  
-  useEffect(() => {
-    console.log('useEffect running with userId:', userId)
-    
+  useEffect(() => {    
     if (!userId) {
-      console.log('No userId found in header')
       return
     }
 
+    // Fetch profile data for the current user for the profile picture
     const fetchData = async () => {
       try {
-        console.log('Fetching profile for user:', userId)
         const profileRes = await axios.get(`${API_ENDPOINTS.users}/${userId}`)
-        console.log('Profile data received:', profileRes.data)
         setProfile(profileRes.data)
       } catch (e) {
-        console.error("Failed to load profile data", e)
       }
     }
     fetchData()
@@ -64,15 +56,6 @@ const Header = () => {
           Since I am in a type script element (div) the */} 
         <SwitchingThemes />
         {/* Notif button; allows users to get notifications regarding their activities.*/}
-        <button
-          className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors relative"
-          aria-label="Notifications"
-        >
-          <BellIcon size={20} />
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-            3
-          </span>
-        </button>
         {/* Links to the user's profile page */}
         <Link to="/profile" className="flex items-center">
           {/* Profile image with a border */}

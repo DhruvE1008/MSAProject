@@ -39,5 +39,5 @@ const MockPage = () => (
 
 // Export the story using `children` as props
 export const Default: Story = {
-  render: () => <Layout><MockPage /></Layout>
+  render: () => <Layout onLogout={() => {}}><MockPage /></Layout>
 }

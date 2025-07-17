@@ -190,7 +190,7 @@ const LandingPage = () => {
           </Link>
         </div>
       </section>
-      {/* Footer */}
+      {/* Footer - removed all the links from footer */}
       <footer className="py-8 px-6 md:px-10 bg-gray-100 dark:bg-gray-800 text-center">
         <p className="text-gray-600 dark:text-gray-300">
           &copy; {new Date().getFullYear()} ClassConnect. All rights reserved.

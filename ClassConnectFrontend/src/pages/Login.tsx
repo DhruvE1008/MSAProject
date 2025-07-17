@@ -8,6 +8,8 @@ import axios from 'axios'
 import { API_ENDPOINTS } from '../config/api'
 
 interface LoginProps {
+  // function that will be called when the user successfully logs in
+  // no parameters or return value, just a callback to notify the parent component
   onLogin: () => void
 }
 
@@ -28,7 +30,6 @@ const Login = ({ onLogin }: LoginProps) => {
 
       if (response.status === 200) {
         const user = response.data
-        // Change from localStorage to sessionStorage
         sessionStorage.setItem('currentUser', JSON.stringify(user))
         showSuccess(`Welcome back, ${user.name || user.email}!`)
         
@@ -151,7 +152,7 @@ const Login = ({ onLogin }: LoginProps) => {
             </button>
           </div>
         </form>
-
+        {/* Link to sign up page if user doesn't have an account */}
         <div className="text-center text-sm">
           <p className="text-gray-600 dark:text-gray-400">
             Don't have an account?{' '}

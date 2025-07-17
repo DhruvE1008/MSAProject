@@ -1,4 +1,4 @@
-// Create components/Toast.tsx
+// basically a notification component that will display messages to the user.
 import React, { useEffect } from 'react'
 import { CheckCircleIcon, XCircleIcon, XIcon } from 'lucide-react'
 
@@ -10,6 +10,7 @@ interface ToastProps {
 }
 
 const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 3000 }) => {
+  // Automatically close the toast after the specified duration aka 3 seconds
   useEffect(() => {
     const timer = setTimeout(onClose, duration)
     return () => clearTimeout(timer)
@@ -21,6 +22,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 3000 }
         ? 'bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700' 
         : 'bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700'
     }`}>
+      {/*If successful the colour will be green otherwise it will be red. */}
       {type === 'success' ? (
         <CheckCircleIcon className="w-5 h-5 text-green-500 dark:text-green-400 mr-3" />
       ) : (

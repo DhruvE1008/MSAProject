@@ -37,6 +37,9 @@ const Profile = () => {
 
   const years = ["First Year", "Second Year", "Third Year", "Fourth Year", "PostGraduate"]
 
+  // gets the profile data and all courses everytime the userId changes
+  // This is useful when the userId changes, for example when a user logs in or out.
+  // It fetches the profile data and all courses from the API and sets them in the state.
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -54,6 +57,9 @@ const Profile = () => {
     fetchData()
   }, [userId])
 
+  // handles changes in the input fields when the user edits their profile
+  // It updates the profile state with the new values.
+  // This is used in the edit mode of the profile page.
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -62,6 +68,9 @@ const Profile = () => {
     setProfile({ ...profile, [name]: value })
   }
 
+  // saves the changes made by the user when they click the save button
+  // It sends a PUT request to the API to update the profile data.
+  // If successful, it shows a success message and exits edit mode.
   const handleSave = () => {
     if (!profile) return
     axios.put(`${API_ENDPOINTS.users}/${userId}`, {

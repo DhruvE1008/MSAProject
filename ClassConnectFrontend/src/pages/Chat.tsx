@@ -48,6 +48,8 @@ interface PrivateChat {
 }
 
 const Chat = () => {
+  // useParams is used to get the courseId from the URL
+  // useSearchParams is used to get the chat type and private chat ID from the URL
   const { courseId } = useParams()
   const [searchParams] = useSearchParams()
   const chatType = searchParams.get('type') || 'course'
@@ -141,6 +143,7 @@ const Chat = () => {
         (messageData.courseId.toString() === selectedCourse.id.toString())
       
       if (messageIsForCurrentCourse) {
+        // formats the message to match the CourseMessage interface
         const formattedMessage = {
           id: messageData.id,
           text: messageData.content,
@@ -161,6 +164,8 @@ const Chat = () => {
       }
     }
 
+    // Remove any existing listener before adding a new one
+    // this prevents duplicate listeners from being added
     connection.off('ReceiveCourseMessage')
     connection.on('ReceiveCourseMessage', handleCourseMessage)
 
