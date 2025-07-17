@@ -89,7 +89,7 @@ namespace ClassConnectBackend.Controllers
                 {
                     id = message.Id,
                     content = message.Content,
-                    sender = user.Name,
+                    sender = user.Username,
                     senderId = user.Id,
                     avatar = user.ProfilePictureUrl ?? "/default-avatar.png",
                     timestamp = message.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
