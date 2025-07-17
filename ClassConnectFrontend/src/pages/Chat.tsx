@@ -462,20 +462,34 @@ const Chat = () => {
     <div className="h-[calc(100vh-10rem)] flex flex-col md:flex-row">
       {/* Mobile tab switcher and back button */}
       <div className="md:hidden flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex gap-2">
+        {chatSelected ? (
           <button
-            onClick={() => handleTabSwitch('course')}
-            className={`px-3 py-1 rounded-md text-sm font-medium ${activeTab === 'course' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+            onClick={() => {
+              setSidebarOpen(true)
+              setChatSelected(false)
+              setSelectedCourse(null)
+              setSelectedPrivateChat(null)
+            }}
+            className="text-blue-600 dark:text-blue-400 font-semibold"
           >
-            <Hash size={14} className="inline mr-1" /> Courses
+            ← Back to Chats
           </button>
-          <button
-            onClick={() => handleTabSwitch('private')}
-            className={`px-3 py-1 rounded-md text-sm font-medium ${activeTab === 'private' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
-          >
-            <MessageCircleIcon size={14} className="inline mr-1" /> Private
-          </button>
-        </div>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleTabSwitch('course')}
+              className={`px-3 py-1 rounded-md text-sm font-medium ${activeTab === 'course' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+            >
+              <Hash size={14} className="inline mr-1" /> Courses
+            </button>
+            <button
+              onClick={() => handleTabSwitch('private')}
+              className={`px-3 py-1 rounded-md text-sm font-medium ${activeTab === 'private' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+            >
+              <MessageCircleIcon size={14} className="inline mr-1" /> Private
+            </button>
+          </div>
+        )}
         <span className="font-semibold text-lg">Chat</span>
       </div>
 
