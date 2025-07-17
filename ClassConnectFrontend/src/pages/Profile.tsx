@@ -245,11 +245,11 @@ const Profile = () => {
             My Courses
           </h2>
           <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
-            <div className="flex w-full gap-2">
+            <div className="flex flex-col w-full gap-2 sm:flex-row">
               <select
                 value={selectedCourseId || ''}
                 onChange={(e) => setSelectedCourseId(Number(e.target.value))}
-                className="flex-1 min-w-0 px-2 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full sm:flex-1 px-2 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               >
                 <option value="">Select Course</option>
                 {unenrolledCourses.map(course => (
@@ -261,7 +261,7 @@ const Profile = () => {
               <button
                 onClick={handleEnroll}
                 disabled={!selectedCourseId}
-                className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full sm:w-auto px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 style={{ whiteSpace: 'nowrap' }}
               >
                 Add
