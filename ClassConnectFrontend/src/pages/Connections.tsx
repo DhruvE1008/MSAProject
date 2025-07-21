@@ -208,7 +208,13 @@ const Connections = () => {
       const request = pendingRequests.find(req => req.id === id)
       await axios.post(`${API_ENDPOINTS.connection}/requests/${id}/accept`)
       showSuccess(`Connection request from ${request?.name || 'user'} accepted!`)
-      // UI will update via SignalR event
+      // Immediately refresh all relevant data for instant UI update
+      await Promise.all([
+        fetchRequests(),
+        fetchConnections(),
+        fetchSuggestions(),
+        fetchOutgoingRequests()
+      ])
     } catch (err) {
       console.error('Error accepting request:', err)
       showError('Failed to accept connection request')
@@ -220,7 +226,13 @@ const Connections = () => {
       const request = pendingRequests.find(req => req.id === id)
       await axios.post(`${API_ENDPOINTS.connection}/requests/${id}/reject`)
       showSuccess(`Connection request from ${request?.name || 'user'} declined`)
-      // UI will update via SignalR event
+      // Immediately refresh all relevant data for instant UI update
+      await Promise.all([
+        fetchRequests(),
+        fetchConnections(),
+        fetchSuggestions(),
+        fetchOutgoingRequests()
+      ])
     } catch (err) {
       console.error('Error rejecting request:', err)
       showError('Failed to reject connection request')
