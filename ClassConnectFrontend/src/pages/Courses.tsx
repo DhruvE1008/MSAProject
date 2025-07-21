@@ -237,7 +237,7 @@ const Courses = () => {
               <div className="flex items-center justify-between mt-4 pt-4 border-t dark:border-gray-700">
                 <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                   <UsersIcon size={16} className="mr-1" />
-                  {course.studentCount} students enrolled
+                  {course.studentCount} users enrolled
                 </div>
                 <div className="flex space-x-2">
                   {/* Chat button for enrolled users */}
