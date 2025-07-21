@@ -158,53 +158,40 @@ const Connections = () => {
       connectionRef.current = connection
       connectionInstance = connection
 
-      // Handle connection request received (for requests page)
-      connection.on('ConnectionRequestReceived', (data) => {
-        // Only fetch what's needed for the current tab
-        if (activeTab === 'requests') {
-          fetchRequests()
-        } else if (activeTab === 'discover') {
-          fetchSuggestions()
-        }
+      // Refetch all relevant data on any connection event for real-time updates
+      connection.on('ConnectionRequestReceived', () => {
+        fetchRequests()
+        fetchSuggestions()
+        fetchConnections()
+        fetchOutgoingRequests()
       })
 
-      // Handle connection request sent (for discover page)
-      connection.on('ConnectionRequestSent', (data) => {
-        // Only update discover tab data
-        if (activeTab === 'discover') {
-          fetchOutgoingRequests()
-          fetchSuggestions()
-        }
+      connection.on('ConnectionRequestSent', () => {
+        fetchRequests()
+        fetchSuggestions()
+        fetchConnections()
+        fetchOutgoingRequests()
       })
 
-      // Handle connection accepted (for all pages)
-      connection.on('ConnectionAccepted', (data) => {
-        // Update based on current active tab
-        if (activeTab === 'connections') {
-          fetchConnections()
-        } else if (activeTab === 'requests') {
-          fetchRequests()
-        } else if (activeTab === 'discover') {
-          fetchSuggestions()
-        }
+      connection.on('ConnectionAccepted', () => {
+        fetchRequests()
+        fetchSuggestions()
+        fetchConnections()
+        fetchOutgoingRequests()
       })
 
-      // Handle connection rejected (for all pages)
-      connection.on('ConnectionRejected', (data) => {
-        // Only update relevant tabs
-        if (activeTab === 'requests') {
-          fetchRequests()
-        } else if (activeTab === 'discover') {
-          fetchSuggestions()
-        }
+      connection.on('ConnectionRejected', () => {
+        fetchRequests()
+        fetchSuggestions()
+        fetchConnections()
+        fetchOutgoingRequests()
       })
 
-      // Handle connection removed (for connections page)
-      connection.on('ConnectionRemoved', (data) => {
-        // Only update if on connections tab
-        if (activeTab === 'connections') {
-          fetchConnections()
-        }
+      connection.on('ConnectionRemoved', () => {
+        fetchRequests()
+        fetchSuggestions()
+        fetchConnections()
+        fetchOutgoingRequests()
       })
 
       connection.onreconnecting(() => {
