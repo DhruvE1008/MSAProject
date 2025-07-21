@@ -128,25 +128,19 @@ const Connections = () => {
     let connectionInstance: signalR.HubConnection | null = null
 
     const setupConnection = async () => {
-      // Fetch only essential data on initial load
-      try {
-        // Always fetch user courses (needed for filtering)
-        await fetchUserCourses()
-        
-        // Only fetch data for current active tab
-        if (activeTab === 'connections') {
-          await fetchConnections()
-        } else if (activeTab === 'requests') {
-          await fetchRequests()
-        } else if (activeTab === 'discover') {
-          await Promise.all([
-            fetchSuggestions(),
-            fetchOutgoingRequests()
-          ])
-        }
-        
-      } catch (err) {
-        console.error('❌ Error loading initial data:', err)
+      // Always fetch user courses (needed for filtering)
+      await fetchUserCourses()
+
+      // Fetch data for current active tab
+      if (activeTab === 'connections') {
+        await fetchConnections()
+      } else if (activeTab === 'requests') {
+        await fetchRequests()
+      } else if (activeTab === 'discover') {
+        await Promise.all([
+          fetchSuggestions(),
+          fetchOutgoingRequests()
+        ])
       }
 
       // Setup SignalR
@@ -159,40 +153,17 @@ const Connections = () => {
       connectionInstance = connection
 
       // Refetch all relevant data on any connection event for real-time updates
-      connection.on('ConnectionRequestReceived', () => {
+      const refetchAll = () => {
         fetchRequests()
         fetchSuggestions()
         fetchConnections()
         fetchOutgoingRequests()
-      })
-
-      connection.on('ConnectionRequestSent', () => {
-        fetchRequests()
-        fetchSuggestions()
-        fetchConnections()
-        fetchOutgoingRequests()
-      })
-
-      connection.on('ConnectionAccepted', () => {
-        fetchRequests()
-        fetchSuggestions()
-        fetchConnections()
-        fetchOutgoingRequests()
-      })
-
-      connection.on('ConnectionRejected', () => {
-        fetchRequests()
-        fetchSuggestions()
-        fetchConnections()
-        fetchOutgoingRequests()
-      })
-
-      connection.on('ConnectionRemoved', () => {
-        fetchRequests()
-        fetchSuggestions()
-        fetchConnections()
-        fetchOutgoingRequests()
-      })
+      }
+      connection.on('ConnectionRequestReceived', refetchAll)
+      connection.on('ConnectionRequestSent', refetchAll)
+      connection.on('ConnectionAccepted', refetchAll)
+      connection.on('ConnectionRejected', refetchAll)
+      connection.on('ConnectionRemoved', refetchAll)
 
       connection.onreconnecting(() => {
         isConnected = false
@@ -200,11 +171,7 @@ const Connections = () => {
 
       connection.onreconnected(() => {
         isConnected = true
-        // Refresh all data after reconnection
-        fetchConnections()
-        fetchRequests()
-        fetchSuggestions()
-        fetchOutgoingRequests()
+        refetchAll()
       })
 
       connection.onclose(() => {
@@ -214,7 +181,6 @@ const Connections = () => {
       try {
         await connection.start()
         isConnected = true
-        
         // Join user group for targeted notifications
         await connection.invoke('JoinUserGroup', userId.toString())
       } catch (err) {
@@ -234,7 +200,7 @@ const Connections = () => {
         connectionRef.current = null
       }
     }
-  }, [userId]) // Only depend on userId to avoid infinite loops
+  }, [userId, activeTab]) // Depend on userId and activeTab for correct group join/listen
 
   // --- Action handlers ---
   const handleAcceptRequest = async (id: number) => {
