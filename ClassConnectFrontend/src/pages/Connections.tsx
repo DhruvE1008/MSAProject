@@ -57,7 +57,7 @@ const Connections = () => {
 
   const connectionRef = useRef<signalR.HubConnection | null>(null)
 
-  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
   const userId = currentUser.id
 
   // Use toast hook
@@ -407,7 +407,7 @@ const Connections = () => {
 const ConnectionList = ({ connections, onRemove, showError }: { connections: Connection[]; onRemove: (id: number) => void; showError: (message: string) => void }) => {
   const navigate = useNavigate()
   const handleStartChat = async (connectionId: number, otherUserId: number) => {
-  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
   try {
     const response = await axios.post(`${API_ENDPOINTS.chat}/create`, {
       user1Id: currentUser.id,

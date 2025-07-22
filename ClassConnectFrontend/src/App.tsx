@@ -39,11 +39,11 @@ export function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setCurrentUser(null);
-    sessionStorage.removeItem('currentUser');
+    localStorage.removeItem('currentUser');
   };
 
   useEffect(() => {
-    const savedUser = sessionStorage.getItem('currentUser');
+    const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
       setIsAuthenticated(true);

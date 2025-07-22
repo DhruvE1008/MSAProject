@@ -25,7 +25,7 @@ interface Course {
 const departments = ['All', 'Computer Science', 'Mathematics', 'Physics', 'Chemistry', 'Biology']
 
 const Courses = () => {
-  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
   const userId = currentUser.id;
   const isAdmin = userId === 38; // <-- Admin check
   const [courses, setCourses] = useState<Course[]>([])

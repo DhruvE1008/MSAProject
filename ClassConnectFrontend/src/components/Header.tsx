@@ -20,7 +20,7 @@ interface ProfileData {
 // components are reusable pieces of code that can be used in different parts of the application.
 // the header is a component because it will be used in every page of the application.
 const Header = () => {
-  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
   // Try both lowercase and uppercase
   const userId = currentUser.id || currentUser.Id;
   const [profile, setProfile] = useState<ProfileData | null>(null)

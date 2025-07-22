@@ -30,7 +30,7 @@ const Login = ({ onLogin }: LoginProps) => {
 
       if (response.status === 200) {
         const user = response.data
-        sessionStorage.setItem('currentUser', JSON.stringify(user))
+        localStorage.setItem('currentUser', JSON.stringify(user))
         showSuccess(`Welcome back, ${user.name || user.email}!`)
         
         // Delay navigation to show success message

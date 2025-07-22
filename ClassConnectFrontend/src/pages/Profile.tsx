@@ -23,10 +23,11 @@ interface ProfileData {
 }
 
 const Profile = () => {
-  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
   const userId = currentUser.id;
   const [isEditing, setIsEditing] = useState(false)
   const [profile, setProfile] = useState<ProfileData | null>(null)
+  const [originalProfile, setOriginalProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [allCourses, setAllCourses] = useState<Course[]>([])
@@ -46,6 +47,7 @@ const Profile = () => {
         const profileRes = await axios.get(`${API_ENDPOINTS.users}/${userId}`)
         const courseRes = await axios.get(API_ENDPOINTS.courses)
         setProfile(profileRes.data)
+        setOriginalProfile(profileRes.data) // Store original profile
         setAllCourses(courseRes.data)
         setLoading(false)
       } catch (err) {
@@ -221,7 +223,10 @@ const Profile = () => {
 
               <div className="flex justify-end space-x-3 pt-4">
                 <button
-                  onClick={() => setIsEditing(false)}
+                  onClick={() => {
+                    setIsEditing(false)
+                    setProfile(originalProfile) // Reset to original profile
+                  }}
                   className="px-4 py-2 border rounded-md text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancel

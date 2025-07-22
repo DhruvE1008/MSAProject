@@ -39,7 +39,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true)
   const { toasts, showSuccess, showError, hideToast } = useToast()
 
-  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
   const userId = currentUser.id
   const userName = currentUser.name || 'User'
 

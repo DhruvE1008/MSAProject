@@ -116,7 +116,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     const user = response.data
     // Change from localStorage to sessionStorage
-    sessionStorage.setItem('currentUser', JSON.stringify(user))
+    localStorage.setItem('currentUser', JSON.stringify(user))
     
     // Success - call parent callback
     onSignUp()

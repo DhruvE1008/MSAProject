@@ -80,7 +80,7 @@ const Chat = () => {
   // Add a new state for ALL private messages (not just current chat)
   const [allPrivateMessages, setAllPrivateMessages] = useState<{[chatId: string]: PrivateMessage[]}>({})
 
-  const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
   const userId = currentUser.id
 
   // Initialize based on URL params
