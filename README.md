@@ -7,6 +7,7 @@ The project's purpose was to:
 - Make it easier for users to get help with their coursework
 - Find others with similar interests
 - Participate in course discussions
+
 These points perfectly tie into the networking theme, as they help facilitate academic and social connections between the users of my platform.
 
 # Interesting Features
