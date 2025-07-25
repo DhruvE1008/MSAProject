@@ -32,3 +32,33 @@ These points perfectly tie into the networking theme, as they help facilitate ac
 - Support for theme switching (e.g., light/dark mode): In the top right, there is a button that the user can use to change the appearance mode. I also made it so that the icon changes according to the mode.
 - Implement WebSockets: I implemented WebSockets via SignalR so that all chat rooms were live and all connection requests and acceptances/rejections happened in real time, so the user did not have to refresh the page to see any changes.
 
+# Local Set Up Instructions
+After cloning the repository and getting into the MSAProject Folder.
+Place the following files in their respective directories:
+
+ClassConnectFrontend/<br>
+├── .env.development <br>
+└── .env.production
+
+ClassConnectBackend/ <br>
+    └── appsettings.Development.json
+
+Open **two terminal windows** and run the following commands:
+
+### Terminal 1 – Frontend
+
+    cd ClassConnectFrontend
+    npm install
+    npm run dev
+
+### Terminal 2 – Backend
+
+    cd ClassConnectBackend
+    dotnet run
+
+
+The frontend runs at:
+http://localhost:3000
+
+The backend runs at:
+http://localhost:5082
