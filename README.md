@@ -1,3 +1,5 @@
+# Note - Database expires on the 15th of August
+
 # Introduction
 ClassConnect is a full-stack web application for students to get help with their courses through participating in course chats and discussions with classmates and to find and make meaningful connections with other users on the platform.
 
@@ -62,3 +64,9 @@ http://localhost:3000
 
 The backend runs at:
 http://localhost:5082
+
+## Running Storybook
+```
+cd ClassConnectFrontend
+npm run storybook
+```
